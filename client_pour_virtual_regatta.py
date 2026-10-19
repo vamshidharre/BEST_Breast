@@ -4,7 +4,7 @@ import time
 
 # Cible de connexion
 # UNITY_IP = "172.20.26.99" # 127.0.0.1 pour localhost
-UNITY_IP = "192.168.1.121" # A CHANGER
+UNITY_IP = "172.20.26.99"
 COMMAND_PORT = 5005      # Port où envoyer les commandes
 POSE_PORT = 5006    # Port où recevoir la télémétrie
 
