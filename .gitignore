@@ -1,0 +1,23 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+
+# IDE & Editor
+.vscode/
+.idea/
+*.swp
+*~
+
+# OS generated
+Thumbs.db
+Desktop.ini
+.DS_Store
