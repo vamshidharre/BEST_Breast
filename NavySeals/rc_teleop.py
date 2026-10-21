@@ -71,7 +71,7 @@ BANNER = """
 ║  [S]+[D] = Reverse + curve R                                ║
 ║  [S]+[A] = Reverse + curve L                                ║
 ╠══════════════════════════════════════════════════════════════╣
-║  SAFETY: Motors auto-stop after 1.0s of no key (WiFi safe)  ║
+║  SAFETY: Motors auto-stop after 5.0s of no key (WiFi safe)  ║
 ╚══════════════════════════════════════════════════════════════╝
 """
 
