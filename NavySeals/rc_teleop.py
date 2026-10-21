@@ -49,7 +49,7 @@ except ImportError:
 # ─────────────────────────────────────────────────────────────────────────────
 # Tuning parameters
 # ─────────────────────────────────────────────────────────────────────────────
-DEADMAN_TIMEOUT  = 1.0   # seconds — motors stop if no key received (WiFi safety)
+DEADMAN_TIMEOUT  = 5.0   # seconds — motors stop if no key received (WiFi safety)
 KEY_HOLD_WINDOW  = 0.15  # seconds — how long a key is considered "held" after last seen
 STEER_MIX_RATIO  = 0.65  # 0.0=no steering effect when moving, 1.0=full pivot mix
 LOOP_HZ          = 50    # control loop rate (50Hz = 20ms)
