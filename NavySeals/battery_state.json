@@ -1,0 +1,8 @@
+{
+  "capacity_mah": 5000.0,
+  "soc_percent": 100.0,
+  "consumed_mah": 0.0,
+  "last_update_ts": 1792586629.5774696,
+  "reset_ts": 1792586629.5774705,
+  "reset_note": "Manual set 100.0%"
+}

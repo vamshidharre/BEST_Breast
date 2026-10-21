@@ -9,6 +9,9 @@ and Prof. Luc Jaulin's sawtooth proportional steering law:
     u1 = v0 - Kp * e_theta   (Left Thruster)
     u2 = v0 + Kp * e_theta   (Right Thruster)
 
+Heading convention:
+    Marine Clockwise Compass: 0° = North, 90° = East, 180° = South, 270° = West
+
 Usage:
     python3 heading_hold.py [target_heading_deg] [speed] [duration_sec]
 Example:
@@ -48,6 +51,7 @@ def get_calibrated_heading(imu, invA, xbar):
     calib = invA @ (raw - xbar)
     mx, my, _ = calib.flatten()
     
+    # Marine clockwise heading (East is +90°, West is +270°)
     theta_rad = math.atan2(my, mx)
     heading_deg = (math.degrees(theta_rad) + 360.0) % 360.0
     return theta_rad, heading_deg
@@ -87,14 +91,18 @@ def main():
             e_theta = sawtooth(target_rad - theta_rad)
             e_deg = math.degrees(e_theta)
 
-            u1 = int(np.clip(v0 - Kp * e_theta, -120, 120))
-            u2 = int(np.clip(v0 + Kp * e_theta, -120, 120))
+            # Prof. Luc Jaulin's steering law (page 14 of speech_best26.pdf):
+            # Error e > 0 means boat needs to turn RIGHT -> Left motor (u1) pushes harder
+            # Error e < 0 means boat needs to turn LEFT  -> Right motor (u2) pushes harder
+            u1 = int(np.clip(v0 + Kp * e_theta, -120, 120))
+            u2 = int(np.clip(v0 - Kp * e_theta, -120, 120))
 
             ard.send_arduino_cmd_motor(u1, u2)
 
-            print("\rt={:4.1f}s | Target: {:5.1f} deg | Current: {:5.1f} deg | Error: {:+5.1f} deg | Cmd: ({:+4d}, {:+4d})".format(
-                t_elapsed, target_deg, current_deg, e_deg, u1, u2), end="", flush=True)
-            time.sleep(0.05)
+            # Print scrolling telemetry without \r to avoid Windows SSH terminal freeze
+            print("[{:4.1f}s] Target: {:5.1f}° | Heading: {:5.1f}° | Err: {:+5.1f}° | Motors: L={:+4d}, R={:+4d}".format(
+                t_elapsed, target_deg, current_deg, e_deg, u1, u2))
+            time.sleep(0.15)
 
     except KeyboardInterrupt:
         print("\n\nManual override / Ctrl+C detected!")

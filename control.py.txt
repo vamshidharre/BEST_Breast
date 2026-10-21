@@ -1,0 +1,79 @@
+import time
+import numpy as np
+import math
+
+from arduino_driver_v2 import ArduinoIO
+from gps_driver_v2 import GpsIO
+from imu9_driver_v2 import Imu9IO
+
+# Initialisation of the GPS position
+pos = [4825.154359,'N',428.162682,'W',0.] # TO BE CHANGED
+my_current_pos = [0.,'N',0.,'W',0.]
+
+objective =  0  # TO BE DETERMINED the heading desired
+u1, u2 = 0., 0.
+
+def sawtooth(x):
+    return (x+np.pi)%(2*np.pi)-np.pi 
+
+def control(current_heading, desired_heading):
+
+    # TODO
+
+    return u1,u2
+
+
+if __name__ == "__main__":
+    # Sensors Initialisation
+    ard = ArduinoIO()
+    imu = Imu9IO()
+    gps = GpsIO()
+
+
+    # Duration of the control
+    Tmax = 180
+    dt = 0.1
+
+    t0 =  time.time()
+    t = t0
+
+    
+    try:
+        while (t - t0) < Tmax:
+            t = time.time()
+
+            ############ GPS #############
+            # update of the GPS position if possible
+            gll_ok, gll_pos = gps.read_gll_non_blocking()
+            
+            if gll_ok:
+                pos = gll_pos
+                print("pos: ", pos)
+
+
+            ############ IMU #############
+            mag = imu.read_mag_raw() # mag[0] = mx; mag[1] = my; mag[2] = mz
+            acc = imu.read_accel_raw()
+            gyr = imu.read_gyro_raw()
+
+            # print("mag: ", mag)
+            heading = 0 #TODO to be computed using the magnetometers data stored in mag
+            print("cap: ", math.degrees(heading))
+
+            ############ Control #############
+            
+            u1, u2 = control(heading, objective) #TODO
+            ard.send_arduino_cmd_motor(u1, u2)
+
+            print("u1 ", u1)
+            print("u2 ", u2)
+            
+        ard.send_arduino_cmd_motor(0,0)
+
+
+    except KeyboardInterrupt:
+        ard.send_arduino_cmd_motor(0,0)
+        print("Stopping the robot...")
+
+
+    

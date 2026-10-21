@@ -10,6 +10,9 @@ Complete autonomous surface vehicle mission controller:
 4. Steers using Prof. Luc Jaulin's sawtooth heading error law.
 5. Shuts down cleanly and logs telemetry to mission_log.csv.
 
+Heading convention:
+    Marine Clockwise Compass: 0° = North, 90° = East, 180° = South, 270° = West
+
 Usage:
     python3 waypoint_mission.py
 """
@@ -130,25 +133,26 @@ def main():
                     break
                 tx, ty = waypoints_metric[wp_index]
 
-            theta_d = math.atan2(ty - cur_y, tx - cur_x)
+            theta_d = math.atan2(tx - cur_x, ty - cur_y)
             theta = get_heading(imu, invA, xbar)
 
             e_theta = sawtooth(theta_d - theta)
-            u1 = int(np.clip(BASE_SPEED - Kp * e_theta, -100, 100))
-            u2 = int(np.clip(BASE_SPEED + Kp * e_theta, -100, 100))
+            # Prof. Luc Jaulin's proportional steering law (speech_best26.pdf):
+            u1 = int(np.clip(BASE_SPEED + Kp * e_theta, -100, 100))
+            u2 = int(np.clip(BASE_SPEED - Kp * e_theta, -100, 100))
 
             ard.send_arduino_cmd_motor(u1, u2)
 
             h_deg = (math.degrees(theta) + 360) % 360
             e_deg = math.degrees(e_theta)
-            print("\rWP {}/{} | Dist: {:4.1f}m | Pos: ({:5.1f}, {:5.1f}) | Heading: {:5.1f} deg | Err: {:+5.1f} deg | Cmd: ({:+3d}, {:+3d})".format(
-                wp_index+1, len(waypoints_metric), dist, cur_x, cur_y, h_deg, e_deg, u1, u2), end="", flush=True)
+            print("WP {}/{} | Dist: {:4.1f}m | Pos: ({:5.1f}, {:5.1f}) | Heading: {:5.1f}° | Err: {:+5.1f}° | Motors: ({:+3d}, {:+3d})".format(
+                wp_index+1, len(waypoints_metric), dist, cur_x, cur_y, h_deg, e_deg, u1, u2))
 
             with open(log_file, "a") as f:
                 f.write("{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{},{:.1f},{:.1f},{},{}\n".format(
                     time.time(), cur_x, cur_y, tx, ty, wp_index, h_deg, e_deg, u1, u2))
 
-            time.sleep(0.05)
+            time.sleep(0.2)
 
         print("\n\nMISSION ACCOMPLISHED! All waypoints reached.")
 
