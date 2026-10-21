@@ -2,6 +2,7 @@
 """
 DD-Boat 11 - Autonomous GPS Waypoint Mission
 ============================================
+Compatible with Python 3.5+
 Complete autonomous surface vehicle mission controller:
 1. Acquires real-time GPS position (GPGLL) and calibrated compass heading.
 2. Projects coordinates to local Cartesian metric frame (x=East, y=North).
@@ -79,12 +80,11 @@ def main():
         gps.set_filter_speed("0")
         print("[OK] All hardware drivers connected.")
     except Exception as e:
-        print(f"[ERROR] Driver connection failed: {e}")
+        print("[ERROR] Driver connection failed: {}".format(e))
         return
 
     invA, xbar = load_calibration()
 
-    # Wait for first GPS fix to initialize starting position
     print("Waiting for initial GPS fix...")
     cur_x, cur_y = None, None
     while cur_x is None:
@@ -92,20 +92,18 @@ def main():
         if ok:
             lat, lon = cvt_gll_ddmm_2_dd(data)
             cur_x, cur_y = latlon_to_meters(lat, lon)
-            print(f"[GPS LOCKED] Initial position: X={cur_x:.1f}m, Y={cur_y:.1f}m")
+            print("[GPS LOCKED] Initial position: X={:.1f}m, Y={:.1f}m".format(cur_x, cur_y))
         time.sleep(0.2)
 
-    # Mission relative waypoints: 10m square survey around starting position
-    # (Easily modified to absolute coordinates)
     waypoints_metric = [
-        (cur_x + 10.0, cur_y + 0.0),    # Leg 1: East 10m
-        (cur_x + 10.0, cur_y + 10.0),   # Leg 2: North 10m
-        (cur_x + 0.0,  cur_y + 10.0),   # Leg 3: West 10m
-        (cur_x + 0.0,  cur_y + 0.0),    # Leg 4: Return to start
+        (cur_x + 10.0, cur_y + 0.0),
+        (cur_x + 10.0, cur_y + 10.0),
+        (cur_x + 0.0,  cur_y + 10.0),
+        (cur_x + 0.0,  cur_y + 0.0),
     ]
 
     wp_index = 0
-    ARRIVAL_RADIUS = 2.5  # meters
+    ARRIVAL_RADIUS = 2.5
     BASE_SPEED = 45.0
     Kp = 40.0
 
@@ -113,47 +111,42 @@ def main():
     with open(log_file, "w") as f:
         f.write("time,x,y,target_x,target_y,wp_idx,heading_deg,error_deg,u1,u2\n")
 
-    print(f"\nMission armed with {len(waypoints_metric)} waypoints. Starting navigation!\n")
+    print("\nMission armed with {} waypoints. Starting navigation!\n".format(len(waypoints_metric)))
 
     try:
         while wp_index < len(waypoints_metric):
-            # 1. Update GPS position
             ok, data = gps.read_gll_non_blocking()
             if ok:
                 lat, lon = cvt_gll_ddmm_2_dd(data)
                 cur_x, cur_y = latlon_to_meters(lat, lon)
 
-            # 2. Check distance to active waypoint
             tx, ty = waypoints_metric[wp_index]
             dist = math.hypot(tx - cur_x, ty - cur_y)
 
             if dist < ARRIVAL_RADIUS:
-                print(f"\n>>> WAYPOINT {wp_index + 1} REACHED (dist={dist:.1f}m)! Moving to next...")
+                print("\n>>> WAYPOINT {} REACHED (dist={:.1f}m)! Moving to next...".format(wp_index + 1, dist))
                 wp_index += 1
                 if wp_index >= len(waypoints_metric):
                     break
                 tx, ty = waypoints_metric[wp_index]
 
-            # 3. Guidance: Desired heading angle to target
             theta_d = math.atan2(ty - cur_y, tx - cur_x)
-
-            # 4. Navigation: Current heading from calibrated IMU
             theta = get_heading(imu, invA, xbar)
 
-            # 5. Control: Differential thrust
             e_theta = sawtooth(theta_d - theta)
             u1 = int(np.clip(BASE_SPEED - Kp * e_theta, -100, 100))
             u2 = int(np.clip(BASE_SPEED + Kp * e_theta, -100, 100))
 
             ard.send_arduino_cmd_motor(u1, u2)
 
-            # Telemetry logging & console output
             h_deg = (math.degrees(theta) + 360) % 360
             e_deg = math.degrees(e_theta)
-            print(f"\rWP {wp_index+1}/{len(waypoints_metric)} | Dist: {dist:4.1f}m | Pos: ({cur_x:5.1f}, {cur_y:5.1f}) | Heading: {h_deg:5.1f}° | Err: {e_deg:+5.1f}° | Cmd: ({u1:+3d}, {u2:+3d})", end="", flush=True)
+            print("\rWP {}/{} | Dist: {:4.1f}m | Pos: ({:5.1f}, {:5.1f}) | Heading: {:5.1f} deg | Err: {:+5.1f} deg | Cmd: ({:+3d}, {:+3d})".format(
+                wp_index+1, len(waypoints_metric), dist, cur_x, cur_y, h_deg, e_deg, u1, u2), end="", flush=True)
 
             with open(log_file, "a") as f:
-                f.write(f"{time.time():.2f},{cur_x:.2f},{cur_y:.2f},{tx:.2f},{ty:.2f},{wp_index},{h_deg:.1f},{e_deg:.1f},{u1},{u2}\n")
+                f.write("{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{},{:.1f},{:.1f},{},{}\n".format(
+                    time.time(), cur_x, cur_y, tx, ty, wp_index, h_deg, e_deg, u1, u2))
 
             time.sleep(0.05)
 

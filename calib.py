@@ -2,6 +2,7 @@
 """
 DD-Boat 11 - Magnetometer Calibration & Heading Verification
 ============================================================
+Compatible with Python 3.5+ (Raspbian Stretch onboard Pi)
 Implements:
 1. Interactive 4-Pose calibration (North, South-inverted, West, Up)
 2. Jaulin Ellipsoid Fit & Spherization (MagCalib for 3D clouds)
@@ -19,17 +20,11 @@ import json
 import numpy as np
 from scipy.linalg import sqrtm, inv, norm
 
-# Add drivers folder to path if present
 sys.path.append(os.path.join(os.path.dirname(__file__), 'drivers-ddboat-v2'))
 
-# Magnetic inclination for Brittany (Guerledan / Brest): ~64 degrees
 INCLINATION_RAD = np.radians(64.0)
 
-# ---------------------------------------------------------------------------
-# HARDWARE DRIVER INITIALIZATION
-# ---------------------------------------------------------------------------
 def init_hardware():
-    """Initializes IMU and Arduino drivers with graceful fallback for simulation."""
     imu = None
     ard = None
     try:
@@ -37,27 +32,25 @@ def init_hardware():
         imu = imudrv.Imu9IO()
         print("[OK] IMU9 connected.")
     except Exception as e:
-        print(f"[NOTE] IMU driver not loaded ({e}). Simulation mode available.")
+        print("[NOTE] IMU driver not loaded ({}). Simulation mode available.".format(e))
 
     try:
         import arduino_driver_v2 as arddrv
         ard = arddrv.ArduinoIO()
         print("[OK] Arduino connected.")
     except Exception as e:
-        print(f"[NOTE] Arduino driver not loaded ({e}). Audio beeps disabled.")
+        print("[NOTE] Arduino driver not loaded ({}). Audio beeps disabled.".format(e))
 
     return imu, ard
 
 
 def beep(ard, count=1, delay=0.15):
-    """Audible or terminal notification between poses."""
     for _ in range(count):
-        print("\a", end="", flush=True)  # Terminal bell
+        print("\a", end="", flush=True)
         time.sleep(delay)
 
 
 def acquire_average_mag(imu, samples=60, delay=0.03):
-    """Acquires and averages multiple raw magnetometer readings to cancel noise."""
     if imu is None:
         return np.zeros((3, 1))
     
@@ -71,15 +64,7 @@ def acquire_average_mag(imu, samples=60, delay=0.03):
     return mean_val
 
 
-# ---------------------------------------------------------------------------
-# MATHEMATICAL CALIBRATION ALGORITHMS (Jaulin / Zerr)
-# ---------------------------------------------------------------------------
 def Fit_Ellipsoid(x1, x2, x3):
-    """
-    Fits an ellipsoid to a 3D point cloud:
-    p1*x1^2 + p2*x2^2 + p3*x3^2 + p4*x1*x2 + p5*x1*x3 + p6*x2*x3 + p7*x1 + p8*x2 + p9*x3 = 1
-    Returns center xbar and quadratic form matrix Q.
-    """
     x1, x2, x3 = np.array(x1).flatten(), np.array(x2).flatten(), np.array(x3).flatten()
     X = np.column_stack([
         x1**2, x2**2, x3**2,
@@ -101,7 +86,6 @@ def Fit_Ellipsoid(x1, x2, x3):
 
 
 def mag_calib_from_cloud(x1, x2, x3, xnorth, xwest):
-    """Calibrates using a point cloud plus North and West reference poses."""
     Q, xbar = Fit_Ellipsoid(x1, x2, x3)
     I = INCLINATION_RAD
     
@@ -121,70 +105,44 @@ def mag_calib_from_cloud(x1, x2, x3, xnorth, xwest):
 
 
 def mag_calib_4poses(xN, xS, xW, xU):
-    """
-    Computes calibration from the 4 cardinal poses:
-    - xN: Pointing flat North
-    - xS: Pointing South, boat inverted (upside-down)
-    - xW: Pointing flat West
-    - xU: Pointing vertically up to the sky
-    """
     I = INCLINATION_RAD
     
-    # Hard iron offset: midpoint of opposite orientations
-    # North and South-inverted are diametrically opposite in the sensor frame
     xbar = 0.5 * (xN + xS)
     
-    # Vectors centered at hard-iron offset
     vN = xN - xbar
     vW = xW - xbar
     vU = xU - xbar
     
-    # Expected unit direction vectors in local navigation frame
     yN = np.array([[np.cos(I)], [0.0], [-np.sin(I)]])
     yW = np.array([[0.0], [-np.cos(I)], [-np.sin(I)]])
     yU = np.cross(yN.flatten(), yW.flatten()).reshape(3, 1)
     
-    # Measurement matrix V and Reference matrix Y
     V = np.hstack([vN / norm(vN), vW / norm(vW), vU / norm(vU)])
     Y = np.hstack([yN, yW, yU])
     
-    # Gain / scale correction
     mean_radius = np.mean([norm(vN), norm(vW), norm(vU)])
     invA = inv(V) / mean_radius
     
     return invA, xbar
 
 
-# ---------------------------------------------------------------------------
-# HEADING CALCULATION & COMPASS CONVERSION
-# ---------------------------------------------------------------------------
 def compute_heading(xraw, invA, xbar):
-    """
-    Applies calibration and computes heading in degrees [0, 360).
-    y = invA * (xraw - xbar)
-    """
     x_centered = xraw.reshape((3, 1)) - xbar.reshape((3, 1))
     y = invA @ x_centered
     mx, my, mz = y.flatten()
     
-    # Heading angle in radians: psi = arctan2(my, mx)
-    # Geo heading: 0 = North, 90 = East, 180 = South, 270 = West
     psi_trig = np.arctan2(my, mx)
     heading_deg = (np.degrees(psi_trig) + 360.0) % 360.0
     return heading_deg, (mx, my, mz)
 
 
 def heading_to_rose(heading):
-    """Returns human-readable compass heading (e.g. N, NE, E, etc.)."""
     dirs = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
             "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"]
     idx = int((heading + 11.25) / 22.5) % 16
     return dirs[idx]
 
 
-# ---------------------------------------------------------------------------
-# MAIN INTERACTIVE CALIBRATION ROUTINE
-# ---------------------------------------------------------------------------
 def run_interactive_calibration():
     print("=" * 60)
     print("      DD-BOAT 11 : MAGNETOMETER CALIBRATION (4 POSES)      ")
@@ -206,16 +164,19 @@ def run_interactive_calibration():
     
     for title, instruction, key in poses:
         print("\n" + "-" * 50)
-        print(f"  >>> {title} <<<")
-        print(f"  Instructions: {instruction}")
-        input("  Press ENTER when the boat is in position and held steady...")
+        print("  >>> {} <<<".format(title))
+        print("  Instructions: {}".format(instruction))
+        try:
+            input("  Press ENTER when the boat is in position and held steady...")
+        except NameError:
+            raw_input("  Press ENTER when the boat is in position and held steady...")
         
         print("  Collecting 60 samples (hold still for ~2 seconds)...", end="", flush=True)
         beep(ard, 1)
         vec = acquire_average_mag(imu, samples=60, delay=0.03)
         collected_vectors[key] = vec
         print(" [DONE]")
-        print(f"  Captured vector: [{vec[0,0]:.1f}, {vec[1,0]:.1f}, {vec[2,0]:.1f}]")
+        print("  Captured vector: [{:.1f}, {:.1f}, {:.1f}]".format(vec[0,0], vec[1,0], vec[2,0]))
         beep(ard, 2, 0.1)
 
     print("\nComputing calibration parameters...")
@@ -232,7 +193,6 @@ def run_interactive_calibration():
     print("Soft-Iron Matrix (invA):\n", invA)
     print("=" * 50)
     
-    # Save to JSON and TXT
     calib_data = {
         "boat_id": 11,
         "timestamp": time.time(),
@@ -247,10 +207,9 @@ def run_interactive_calibration():
     np.savetxt("calib_invA.txt", invA)
     print("Saved text arrays to 'calib_xbar.txt' and 'calib_invA.txt'.")
 
-    # Live verification
     print("\n" + "=" * 50)
     print("STARTING LIVE HEADING VERIFICATION (Press Ctrl+C to exit):")
-    print("Rotate the boat to check headings (0°=N, 90°=E, 180°=S, 270°=W)...")
+    print("Rotate the boat to check headings (0=N, 90=E, 180=S, 270=W)...")
     print("=" * 50)
     
     try:
@@ -258,7 +217,8 @@ def run_interactive_calibration():
             raw = np.array(imu.read_mag_raw()).reshape((3, 1))
             heading, (mx, my, mz) = compute_heading(raw, invA, xbar)
             rose = heading_to_rose(heading)
-            print(f"\rHeading: {heading:6.1f}° [{rose:3s}] | Calibrated: mx={mx:+6.2f}, my={my:+6.2f}, mz={mz:+6.2f}", end="")
+            print("\rHeading: {:6.1f} deg [{:3s}] | Calibrated: mx={:+6.2f}, my={:+6.2f}, mz={:+6.2f}".format(
+                heading, rose, mx, my, mz), end="", flush=True)
             time.sleep(0.1)
     except KeyboardInterrupt:
         print("\n\nCalibration completed successfully!")

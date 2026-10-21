@@ -2,6 +2,7 @@
 """
 DD-Boat 11 - Initial Hardware Smoke Test
 =========================================
+Compatible with Python 3.5+
 Tests:
 1. Arduino communication & motors (gentle short pulse)
 2. IMU (Pololu 9-DOF: Accel, Gyro, Mag)
@@ -13,16 +14,13 @@ import os
 import time
 import numpy as np
 
-# Ensure drivers folder is in Python path
 sys.path.append(os.path.join(os.path.dirname(__file__), 'drivers-ddboat-v2'))
 
 print("========================================")
 print("     DD-BOAT 11 HARDWARE SMOKE TEST     ")
 print("========================================\n")
 
-# ---------------------------------------------------------
 # 1. IMU TEST
-# ---------------------------------------------------------
 print("[1/3] Testing IMU (Pololu 9-DOF)...")
 try:
     import imu9_driver_v2 as imudrv
@@ -36,11 +34,9 @@ try:
     print("  -> Mag   Raw: x={:6d}, y={:6d}, z={:6d}".format(xmag, ymag, zmag))
     print("  [OK] IMU is communicating properly.\n")
 except Exception as e:
-    print(f"  [ERROR] IMU test failed: {e}\n")
+    print("  [ERROR] IMU test failed: {}\n".format(e))
 
-# ---------------------------------------------------------
 # 2. GPS TEST
-# ---------------------------------------------------------
 print("[2/3] Testing GPS (waiting up to 10s for fix)...")
 try:
     import gps_driver_v2 as gpddrv
@@ -53,7 +49,7 @@ try:
     while time.time() - start_time < 10.0:
         gll_ok, gll_data = gps.read_gll_non_blocking()
         if gll_ok:
-            print("  -> Raw GLL data received:", gll_data)
+            print("  -> Raw GLL data received: {}".format(gll_data))
             gll_received = True
             break
         time.sleep(0.1)
@@ -63,25 +59,21 @@ try:
     else:
         print("  [WARNING] No GPS GLL sentence received within 10s (move antenna near open sky if indoors).\n")
 except Exception as e:
-    print(f"  [ERROR] GPS test failed: {e}\n")
+    print("  [ERROR] GPS test failed: {}\n".format(e))
 
-# ---------------------------------------------------------
 # 3. MOTOR & ARDUINO TEST
-# ---------------------------------------------------------
 print("[3/3] Testing Arduino & Thrusters...")
 print("  CAUTION: Ensure propellers are clear of hands/cables or submerged safely!")
 try:
     import arduino_driver_v2 as arddrv
     ard = arddrv.ArduinoIO()
     
-    # Pulse left motor gently for 1 second
     print("  -> Testing LEFT motor (speed = 40 for 1.0s)...")
     ard.send_arduino_cmd_motor(40, 0)
     time.sleep(1.0)
     ard.send_arduino_cmd_motor(0, 0)
     time.sleep(0.5)
     
-    # Pulse right motor gently for 1 second
     print("  -> Testing RIGHT motor (speed = 40 for 1.0s)...")
     ard.send_arduino_cmd_motor(0, 40)
     time.sleep(1.0)
@@ -89,7 +81,7 @@ try:
     
     print("  [OK] Motors and Arduino respond properly.\n")
 except Exception as e:
-    print(f"  [ERROR] Motor test failed: {e}\n")
+    print("  [ERROR] Motor test failed: {}\n".format(e))
 
 print("========================================")
 print("     SMOKE TEST COMPLETED               ")
