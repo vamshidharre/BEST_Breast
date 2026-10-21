@@ -29,8 +29,12 @@ The **DD-Boat** is a differential-drive autonomous surface vessel powered by dua
 
 ```text
 BEST_Breast/
+├── stop.py                         # Emergency motor stop (0, 0)
 ├── boat11_smoke_test.py            # Hardware smoke test (IMU, GPS, Thrusters) for DD-Boat 11
 ├── calib.py                        # 4-pose magnetometer calibration & live heading test
+├── gps_logger.py                   # GPS telemetry monitor and KML/CSV track logger
+├── heading_hold.py                 # Closed-loop sawtooth heading hold controller
+├── waypoint_mission.py             # Full autonomous GPS waypoint navigation mission
 ├── client_pour_virtual_regatta.py  # UDP client for Unity simulator (Robot ID 3)
 ├── ddboatlib.py                    # Plotting and boat rendering library
 ├── simu.py                         # Waypoint navigation & friction model simulator
@@ -71,7 +75,33 @@ pip install numpy matplotlib
   python simu.py
   ```
 
-### 3. Connect to Unity "Virtual Regatta"
+### 3. Field Operations on Physical DD-Boat
+* **Emergency Stop:**
+  ```bash
+  python3 stop.py
+  ```
+* **Hardware Diagnostic Smoke Test:**
+  ```bash
+  python3 boat11_smoke_test.py
+  ```
+* **Compass Calibration (4 Poses):**
+  ```bash
+  python3 calib.py
+  ```
+* **GPS Telemetry & Track Logger:**
+  ```bash
+  python3 gps_logger.py
+  ```
+* **Closed-Loop Heading Hold:**
+  ```bash
+  python3 heading_hold.py 90 45 20   # Target 90° East, Speed 45, for 20s
+  ```
+* **Autonomous GPS Waypoint Mission:**
+  ```bash
+  python3 waypoint_mission.py
+  ```
+
+### 4. Connect to Unity "Virtual Regatta"
 Set the server IP in `client_pour_virtual_regatta.py` and run:
 ```bash
 python client_pour_virtual_regatta.py
