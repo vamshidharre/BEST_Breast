@@ -29,6 +29,7 @@ The **DD-Boat** is a differential-drive autonomous surface vessel powered by dua
 
 ```text
 BEST_Breast/
+├── boat11_smoke_test.py            # Hardware smoke test (IMU, GPS, Thrusters) for DD-Boat 11
 ├── client_pour_virtual_regatta.py  # UDP client for Unity simulator (Robot ID 3)
 ├── ddboatlib.py                    # Plotting and boat rendering library
 ├── simu.py                         # Waypoint navigation & friction model simulator
