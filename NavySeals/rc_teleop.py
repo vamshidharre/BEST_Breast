@@ -50,7 +50,7 @@ except ImportError:
 # Tuning parameters
 # ─────────────────────────────────────────────────────────────────────────────
 DEADMAN_TIMEOUT  = 5.0   # seconds — motors stop if no key received (WiFi safety)
-KEY_HOLD_WINDOW  = 0.15  # seconds — how long a key is considered "held" after last seen
+KEY_HOLD_WINDOW  = 0.15  # seconds — used internally for multi-key detection (not latch)
 STEER_MIX_RATIO  = 0.65  # 0.0=no steering effect when moving, 1.0=full pivot mix
 LOOP_HZ          = 50    # control loop rate (50Hz = 20ms)
 MOTOR_CLIP       = 120   # max motor command magnitude
@@ -164,25 +164,21 @@ def main():
         except Exception:
             pass
 
-    # ── Key state: track timestamp each key was last seen ─────────────────────
-    # When you HOLD a key in a terminal, it sends repeated keypress events.
-    # We consider a key "held" if it was seen within the last KEY_HOLD_WINDOW seconds.
-    key_ts = {
-        'fwd': 0.0,   # W / UP
-        'bwd': 0.0,   # S / DOWN
-        'rgt': 0.0,   # D / RIGHT
-        'lft': 0.0,   # A / LEFT
-    }
-
     speed = 60          # base speed (40–120)
     last_any_key = time.time()
     watchdog_active = False
     dt = 1.0 / LOOP_HZ
 
+    # ── LATCH STATE: last commanded throttle and steering ─────────────────────
+    # Press a key once → command LATCHES and stays active until new key or Space
+    # This gives the "inertia" feel — boat keeps going after you release the key!
+    latched_throttle = 0   # -speed, 0, or +speed
+    latched_steering = 0   # -steer_power, 0, or +steer_power
+
     # ── Save terminal settings, switch to raw cbreak mode ─────────────────────
     fd = sys.stdin.fileno()
     old_settings = termios.tcgetattr(fd)
-    print(">>> RC READY — Hold keys to drive! Combine W+D for arc turns <<<\n")
+    print(">>> RC READY — Press key to move, Space to stop, Q to quit <<<\n")
 
     try:
         tty.setcbreak(fd)
@@ -198,39 +194,61 @@ def main():
                 last_any_key = now
                 watchdog_active = False
 
-                # Update key timestamps
-                if key == 'UP'   or kl == 'w':   key_ts['fwd'] = now
-                elif key == 'DOWN' or kl == 's':  key_ts['bwd'] = now
-                elif key == 'RIGHT'or kl == 'd':  key_ts['rgt'] = now
-                elif key == 'LEFT' or kl == 'a':  key_ts['lft'] = now
+                steer_power = speed if latched_throttle == 0 else int(speed * STEER_MIX_RATIO)
 
-                # Instant stop
+                # ── LATCH: each key press updates the latched command ─────────
+                # Throttle keys: W/S set forward/reverse throttle
+                if key == 'UP' or kl == 'w':
+                    latched_throttle = +speed
+                    # Recalculate steer_power after throttle change
+                    latched_steering = int(latched_steering * STEER_MIX_RATIO) if latched_steering != 0 else 0
+
+                elif key == 'DOWN' or kl == 's':
+                    latched_throttle = -speed
+                    latched_steering = int(latched_steering * STEER_MIX_RATIO) if latched_steering != 0 else 0
+
+                # Steering keys: A/D add/change steering direction
+                elif key == 'RIGHT' or kl == 'd':
+                    steer_power = speed if latched_throttle == 0 else int(speed * STEER_MIX_RATIO)
+                    latched_steering = +steer_power
+
+                elif key == 'LEFT' or kl == 'a':
+                    steer_power = speed if latched_throttle == 0 else int(speed * STEER_MIX_RATIO)
+                    latched_steering = -steer_power
+
+                # STOP — clears both throttle and steering
                 elif key == ' ' or kl == 'x':
-                    key_ts = {k: 0.0 for k in key_ts}
+                    latched_throttle = 0
+                    latched_steering = 0
                     ard.send_arduino_cmd_motor(0, 0)
-                    print("\r[EMERGENCY STOP]                                             ", end='', flush=True)
+                    print("\r[STOP]             Spd:{:3d} | L:{:+4d} R:{:+4d} | Batt:{}   ".format(
+                        speed, 0, 0, batt_str), end='', flush=True)
                     continue
 
-                # Speed control
+                # Speed control — also rescales current latch
                 elif key == '+' or key == '=':
                     speed = min(120, speed + 10)
-                    print("\r[SPEED] {}%   ".format(speed), flush=True)
+                    if latched_throttle != 0:
+                        latched_throttle = +speed if latched_throttle > 0 else -speed
+                    print("\r[SPEED UP] {}            ".format(speed), flush=True)
                     continue
                 elif key == '-' or key == '_':
                     speed = max(20, speed - 10)
-                    print("\r[SPEED] {}%   ".format(speed), flush=True)
+                    if latched_throttle != 0:
+                        latched_throttle = +speed if latched_throttle > 0 else -speed
+                    print("\r[SPEED DOWN] {}          ".format(speed), flush=True)
                     continue
                 elif kl == '1':
                     speed = 40
-                    print("\r[SPEED PRESET] SLOW (40)   ", flush=True)
+                    print("\r[SLOW (40)]              ", flush=True)
                     continue
                 elif kl == '2':
                     speed = 70
-                    print("\r[SPEED PRESET] MEDIUM (70)   ", flush=True)
+                    print("\r[MEDIUM (70)]            ", flush=True)
                     continue
                 elif kl == '3':
                     speed = 100
-                    print("\r[SPEED PRESET] FAST (100)   ", flush=True)
+                    print("\r[FAST (100)]             ", flush=True)
                     continue
 
                 # Quit
@@ -238,42 +256,21 @@ def main():
                     print("\nQuitting RC Teleop...")
                     break
 
-            # ── Determine which keys are currently "held" ─────────────────────
-            # A key is held if it was seen within KEY_HOLD_WINDOW seconds
-            fwd_held = (now - key_ts['fwd']) < KEY_HOLD_WINDOW
-            bwd_held = (now - key_ts['bwd']) < KEY_HOLD_WINDOW
-            rgt_held = (now - key_ts['rgt']) < KEY_HOLD_WINDOW
-            lft_held = (now - key_ts['lft']) < KEY_HOLD_WINDOW
-
             # ── SAFETY WATCHDOG ───────────────────────────────────────────────
+            # If NO key at all for DEADMAN_TIMEOUT seconds → stop motors
+            # (protects against WiFi drop while boat is running)
             if (now - last_any_key) > DEADMAN_TIMEOUT:
                 if not watchdog_active:
                     watchdog_active = True
-                    key_ts = {k: 0.0 for k in key_ts}
+                    latched_throttle = 0
+                    latched_steering = 0
                     ard.send_arduino_cmd_motor(0, 0)
-                    print("\r[WATCHDOG] No key for {:.0f}s — motors stopped (WiFi safe) ".format(
+                    print("\r[WATCHDOG] No input for {:.0f}s — motors stopped (WiFi safe)   ".format(
                         DEADMAN_TIMEOUT), end='', flush=True)
                 continue
 
-            # ── Compute throttle and steering ─────────────────────────────────
-            throttle = 0
-            if fwd_held and not bwd_held:
-                throttle = +speed
-            elif bwd_held and not fwd_held:
-                throttle = -speed
-
-            # When moving, reduce steering to give an ARC (not a pivot)
-            # When stationary, full steering = pivot spin in place
-            steer_power = speed if throttle == 0 else int(speed * STEER_MIX_RATIO)
-
-            steering = 0
-            if rgt_held and not lft_held:
-                steering = +steer_power
-            elif lft_held and not rgt_held:
-                steering = -steer_power
-
-            # ── Arcade Drive Mix ──────────────────────────────────────────────
-            left, right = arcade_mix(throttle, steering)
+            # ── Arcade Drive Mix with latched values ──────────────────────────
+            left, right = arcade_mix(latched_throttle, latched_steering)
 
             # ── Send to Arduino ───────────────────────────────────────────────
             ard.send_arduino_cmd_motor(left, right)
@@ -284,11 +281,11 @@ def main():
                 batt_str = "{:.1f}%".format(battery.soc_percent)
 
             # ── Live display ──────────────────────────────────────────────────
-            label = get_action_label(throttle, steering)
+            label = get_action_label(latched_throttle, latched_steering)
             print("\r[{:17s}] Spd:{:3d} | L:{:+4d} R:{:+4d} | Batt:{}   ".format(
                 label, speed, left, right, batt_str), end='', flush=True)
 
-            time.sleep(0.01)  # small sleep to not hammer the CPU
+            time.sleep(0.01)
 
     except KeyboardInterrupt:
         print("\n\nCtrl+C — stopping...")
