@@ -54,6 +54,7 @@ KEY_HOLD_WINDOW  = 0.15  # seconds — used internally for multi-key detection (
 STEER_MIX_RATIO  = 0.65  # 0.0=no steering effect when moving, 1.0=full pivot mix
 LOOP_HZ          = 50    # control loop rate (50Hz = 20ms)
 MOTOR_CLIP       = 120   # max motor command magnitude
+MOTOR_MIN        = 35    # minimum non-zero command (ESC deadband compensation)
 
 BANNER = """
 ╔══════════════════════════════════════════════════════════════╗
@@ -93,6 +94,16 @@ def get_key(timeout=0.02):
                     return {'A': 'UP', 'B': 'DOWN', 'C': 'RIGHT', 'D': 'LEFT'}.get(ch3, 'ESC')
         return 'ESC'
     return ch
+
+def apply_deadband(val, minimum=MOTOR_MIN):
+    """
+    Boost any non-zero motor command to at least MOTOR_MIN.
+    This prevents ESC deadband stuttering at very low speeds.
+    e.g. command=20 → sent as 35,  command=0 → stays 0,  command=-15 → sent as -35
+    """
+    if val == 0:
+        return 0
+    return int(math.copysign(max(abs(val), minimum), val))
 
 def arcade_mix(throttle, steering, max_val=MOTOR_CLIP):
     """
@@ -271,6 +282,10 @@ def main():
 
             # ── Arcade Drive Mix with latched values ──────────────────────────
             left, right = arcade_mix(latched_throttle, latched_steering)
+
+            # ── Apply ESC deadband compensation ───────────────────────────────
+            left  = apply_deadband(left)
+            right = apply_deadband(right)
 
             # ── Send to Arduino ───────────────────────────────────────────────
             ard.send_arduino_cmd_motor(left, right)
