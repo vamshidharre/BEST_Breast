@@ -90,6 +90,22 @@ To ensure rapid execution and zero runtime bugs during field tests, keep these h
 - **Controls:** Arrow Keys (`▲`, `▼`, `◄`, `►`) and `WASD` for forward, reverse, and pivot turning; `Space` for brake stop; `+`/`-` for power adjustment.
 - **Safety Deadman Watchdog:** If no key is detected for $>0.5\text{s}$, thrusters automatically disarm to `(0, 0)` preventing boat runaway if Wi-Fi drops.
 
+### Phase 8: Digital Twin & Non-Linear Luenberger Observer (`digital_twin_presentation.pdf`)
+- **Instructor:** Antoine Morvan (ENSTA, Thursday Oct 22, 2026). Reference: [`digital_twin_presentation.pdf`](file:///d:/Personal_Projects/BEST_Breast/digital_twin_presentation.pdf) and [`DIGITAL_TWIN.md`](file:///d:/Personal_Projects/BEST_Breast/DIGITAL_TWIN.md).
+- **Core Concept:** Real-time bi-directional synchronization between physical boat (`172.20.25.211`) and virtual Python simulation (`roblib`) over a lightweight UDP Wi-Fi socket link.
+- **Kinematic Model (Dubins DD-Boat):**
+  $$\begin{cases} \dot{x} = v \cos\theta \\ \dot{y} = v \sin\theta \\ \dot{\theta} = \omega \end{cases}\quad\text{where}\quad v = k_2 \frac{u_1 + u_2}{2},\quad \omega = k_1 (u_2 - u_1)$$
+- **Sensor-Model Fusion Dilemma:** The physical model alone drifts due to lake wind, water currents, and thruster asymmetry ($k_1, k_2$ parameter mismatch). Raw sensors (GPS & compass) are noisy, jittery, and suffer packet loss.
+- **Luenberger Observer Law:**
+  $$\dot{\hat{X}} = f(\hat{X}, u) + L \cdot (y - C\hat{X})$$
+  With state measurement $y = [x_{\text{meas}}, y_{\text{meas}}, \theta_{\text{meas}}]^\top$, $C = I$, observer gain matrix $L = \text{diag}(l_1, l_1, l_2)$, angular error normalized via $\text{sawtooth}$, and graceful fallback to pure model dead-reckoning on UDP packet timeout.
+- **In-Water Verification Sequence:**
+  1. $L = 0$: Quantify model drift rate on lake water.
+  2. $y$ alone: Benchmark GPS/compass noise amplitude.
+  3. Progressive $L$ tuning: Balance responsiveness vs noise rejection.
+  4. Dropout test: Cut telemetry for $5\text{s}$ to verify dead reckoning.
+  5. Gain identification: Empirically tune propulsive gains $k_1, k_2$.
+
 ### 📌 Pending Actions When Reconnected to Boat 11:
 1. **Google Earth Trajectory Check:** Pull `gps_data.kml` via SCP to laptop and open in [earth.google.com](https://earth.google.com/web/) to verify logged shore coordinates.
 2. **In-Water Lake Test:** Deploy DD-Boat 11 for short-burst autonomous heading hold / Boomerang return (`control.py`).
@@ -111,6 +127,10 @@ To ensure rapid execution and zero runtime bugs during field tests, keep these h
 | **Keyboard RC Remote** | `rc_teleop.py` | Manual Arrow Key / WASD driving with 0.5s watchdog | **BUILT (Water Ready)** |
 | **GPS Waypoints** | `waypoint_mission.py` | Sequenced multi-waypoint lake mission navigator | **BUILT (Water Ready)** |
 | **Regatta Competition** | `regatta_loop.py` | 5-minute cyclic gate-crossing loop ($A \leftrightarrow B$) with scoring | **BUILT (Competition Ready)** |
+| **Digital Twin Simulator** | `simu.py` / `roblib.py` | Dubins car & DD-boat forward kinematic integration ($dt=0.05$) | **BUILT & TESTED** |
+| **Page 13 Boat Simulator** | `simu_page13.py` | Official Page 13 Euler integration & `roblib.draw_tank` visualizer | **BUILT & TESTED** |
+| **Practice 1 Exercises** | `digital_twin_exercises.py` | Page 14 exercises: straight, differential turn, in-place spin, square | **BUILT & TESTED** |
+| **Luenberger Observer** | `digital_twin_observer.py` | Predictor-corrector state filter fusing model and UDP telemetry | **BUILT & READY** |
 | **Line-Following GNC** | `line_follower.py` | Cross-track error determinant control between buoys | **TO BE BUILT** |
 | **Live Web HMI / Monitor**| `hmi_monitor.py` | Real-time web/terminal telemetry HUD (voltage, GPS, gate dist) | **OPTIONAL ADD-ON** |
 
@@ -218,6 +238,21 @@ Where:
 * $e > 0 \implies \psi < \psi_{\text{target}}$: Boat must yaw **RIGHT** (clockwise) $\implies u_{\text{left}} \uparrow,\ u_{\text{right}} \downarrow$.
 * $e < 0 \implies \psi > \psi_{\text{target}}$: Boat must yaw **LEFT** (counter-clockwise) $\implies u_{\text{left}} \downarrow,\ u_{\text{right}} \uparrow$.
 * $\text{sawtooth}(\alpha) = (\alpha + 180^\circ \pmod{360^\circ}) - 180^\circ \in [-180^\circ, 180^\circ]$.
+
+### 5. Dubins-like DD-Boat Kinematics & Euler Discretization (Antoine Morvan)
+State $X = [x, y, \theta]^\top$ actuated by thrusters $u_1$ (left) and $u_2$ (right):
+$$\begin{cases} \dot{x} = v \cos\theta \\ \dot{y} = v \sin\theta \\ \dot{\theta} = \omega \end{cases}\quad\text{with}\quad \begin{cases} v = k_2 \dfrac{u_1 + u_2}{2} \\ \omega = k_1 (u_2 - u_1) \end{cases}$$
+Euler numerical integration over time step $dt$:
+$$x_{k+1} = x_k + dt \cdot v \cos\theta_k, \quad y_{k+1} = y_k + dt \cdot v \sin\theta_k, \quad \theta_{k+1} = \theta_k + dt \cdot \omega$$
+
+### 6. Non-Linear Luenberger Observer State Estimation
+Predicts state via physical model $f(\hat{X}, u)$ and corrects via sensor innovation $y - C\hat{X}$:
+$$\dot{\hat{X}} = f(\hat{X}, u) + L \cdot (y - C\hat{X})$$
+Where:
+* State measurement: $y = [x_{\text{GPS}}, y_{\text{GPS}}, \theta_{\text{compass}}]^\top \implies C = I_{3 \times 3}$.
+* Observer gain matrix: $L = \text{diag}(l_1, l_1, l_2)$ (trust dial between pure model $L=0$ and pure sensor $L \gg 1$).
+* Angle innovation wrapping: $\text{err}[2] = \text{sawtooth}(y[2] - \hat{X}[2]) \in [-\pi, \pi]$.
+* Packet loss resilience: When UDP timeout occurs, set $\text{err} = \mathbf{0}$, continuing dead reckoning seamlessly via $f(\hat{X}, u)$.
 
 ---
 

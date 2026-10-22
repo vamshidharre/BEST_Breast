@@ -57,6 +57,7 @@ All 27 pages of the introductory curriculum ([`best_ddboat.pdf`](file:///d:/Pers
 | **Propeller Motor Drive** | `motor_test.py` | Left=100, Right=-100 in-place turn ran for 2s, stopped `(0, 0)` | **PASSED** |
 | **GPS Georeferencing** | `gps.py` | Locked fix at $48.198795^\circ\text{ N}, -3.014180^\circ\text{ W}$ ($65.9\text{m}$ from Guerlédan reference). Saved `gps_data.kml` | **PASSED** |
 | **Bench Heading Control** | `heading_hold.py` | Proportional controller tested; dynamic motor steering verified | **PASSED** |
+| **Digital Twin & Observer** | `digital_twin_presentation.pdf` | Antoine Morvan curriculum (Dubins model, UDP link, Luenberger observer) | **IN PROGRESS (Thursday Module)** |
 
 ---
 
@@ -72,6 +73,8 @@ All scripts are written, tested, Python 3.5.3 compatible, and present in both lo
 6. **`control.py`** — **The "No-Kayaking" Return-to-Home Controller** based on the professor's template. Supports `boomerang` (out and back) and `rth_gps` (automatic return to launch GPS coordinates).
 7. **`rc_teleop.py`** — Wireless manual remote control via laptop keyboard Arrow Keys (`▲`, `▼`, `◄`, `►`) / `WASD` over SSH with an automatic 0.5s deadman watchdog.
 8. **`waypoint_mission.py`** — Autonomous GPS waypoint navigation for the lake course and Friday's Regatta.
+9. **`battery_probe.py`** — Diagnostic probe that checks Arduino status (`S;`, `E;`), Pi PMIC throttling (`vcgencmd`), and I2C ADC devices for battery voltage.
+10. **`battery_monitor.py`** — Software Coulomb-counter & State-of-Charge (SoC) monitor tracking mAh consumed and remaining run time.
 
 ---
 
@@ -81,6 +84,9 @@ When starting a new session or putting the boat on the lake, follow this sequenc
 
 ### Step 1: Sync Any Updates from Laptop to Boat (PowerShell)
 ```powershell
+scp d:\Personal_Projects\BEST_Breast\NavySeals\battery.py ue32@172.20.25.211:~/NavySeals/
+scp d:\Personal_Projects\BEST_Breast\NavySeals\battery_monitor.py ue32@172.20.25.211:~/NavySeals/
+scp d:\Personal_Projects\BEST_Breast\NavySeals\battery_probe.py ue32@172.20.25.211:~/NavySeals/
 scp d:\Personal_Projects\BEST_Breast\NavySeals\heading_hold.py ue32@172.20.25.211:~/NavySeals/
 scp d:\Personal_Projects\BEST_Breast\NavySeals\control.py ue32@172.20.25.211:~/NavySeals/
 scp d:\Personal_Projects\BEST_Breast\NavySeals\rc_teleop.py ue32@172.20.25.211:~/NavySeals/
@@ -106,3 +112,11 @@ On laptop PowerShell, pull the KML file:
 scp ue32@172.20.25.211:~/NavySeals/gps_data.kml .
 ```
 Import `gps_data.kml` into **[earth.google.com](https://earth.google.com/web/)** to see the satellite map of the boat's trajectory on Guerlédan Lake.
+
+### Step 5: Thursday Digital Twin & Luenberger Observer Session (Antoine Morvan)
+Follow the 5-step curriculum documented in [`DIGITAL_TWIN.md`](file:///d:/Personal_Projects/BEST_Breast/DIGITAL_TWIN.md):
+1. **Model Baseline ($L=0$):** Run open-loop forward integration to gauge drift rate against lake wind/current.
+2. **Sensor Noise Baseline:** Analyze raw measurement jitter from GPS and compass.
+3. **Observer Tuning ($L$):** Tune gain matrix $L = \text{diag}([l_1, l_1, l_2])$ (baseline $[2.0, 2.0, 2.0]$) to balance model filtering vs sensor tracking.
+4. **Packet Loss Resilience:** Test UDP timeout fallback ($\text{err} = \mathbf{0}$) simulating dropped packets.
+5. **Hydrodynamic Gain Identification ($k_1, k_2$):** Measure steady-state speed $v$ and yaw rate $\omega$ for known inputs $(u_1, u_2)$ to refine boat model gains.

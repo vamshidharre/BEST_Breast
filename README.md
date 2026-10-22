@@ -25,6 +25,7 @@ This repository contains:
 | :--- | :--- |
 | **[`SESSION_HANDOVER.md`](file:///d:/Personal_Projects/BEST_Breast/SESSION_HANDOVER.md)** | **Instant context loader for new AI chats & team members.** Contains current state, solved gotchas, and immediate next commands. |
 | **[`PROJECT_RECORD.md`](file:///d:/Personal_Projects/BEST_Breast/PROJECT_RECORD.md)** | **Full technical runbook.** Hardware specs, math formulas, complete milestone log, and command cheat sheet. |
+| **[`DIGITAL_TWIN.md`](file:///d:/Personal_Projects/BEST_Breast/DIGITAL_TWIN.md)** | **Digital twin, UDP & observer guide.** Dubins model, UDP socket protocol, Luenberger observer, and lake experiment sequence. |
 | **[`COMPASS_CALIBRATION_REPORT.md`](file:///d:/Personal_Projects/BEST_Breast/COMPASS_CALIBRATION_REPORT.md)** | **Sensor calibration report.** Details ellipsoid fitting theory, soft/hard iron correction, and verification. |
 | **[`REGATTA_MISSION_PLAN.md`](file:///d:/Personal_Projects/BEST_Breast/REGATTA_MISSION_PLAN.md)** | **Friday Regatta competition strategy.** Gate crossing algorithm, scoring optimization, and rules. |
 
@@ -36,6 +37,7 @@ This repository contains:
 BEST_Breast/
 ├── SESSION_HANDOVER.md             # ⭐ Quick-resume guide for new sessions
 ├── PROJECT_RECORD.md               # ⭐ Full technical runbook & command cheat sheet
+├── DIGITAL_TWIN.md                 # ⭐ Digital twin, UDP & Luenberger observer manual
 ├── COMPASS_CALIBRATION_REPORT.md   # Magnetometer calibration report & matrices
 ├── REGATTA_MISSION_PLAN.md         # Friday Regatta race strategy & rules
 │
@@ -58,6 +60,7 @@ BEST_Breast/
 │   └── client_pour_virtual_regatta.py # UDP client for Unity simulator
 │
 └── docs/                           # 📄 COURSE MATERIALS & TEXTBOOKS
+    ├── digital_twin_presentation.pdf # Antoine Morvan's Digital Twin & Observer presentation
     ├── best_ddboat.pdf             # Introductory DD-Boat guide (Pages 1–27) [100% Passed]
     ├── drones.pdf                  # Prof. Luc Jaulin's textbook (Chapter 4: DD-Boats)
     ├── speech_best26.pdf           # Heading control & simulation presentation
