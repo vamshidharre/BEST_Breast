@@ -1,20 +1,13 @@
 #!/usr/bin/env python3
 """
-DD-Boat 11 - Autonomous GPS Waypoint Mission
-============================================
-Compatible with Python 3.5+
-Complete autonomous surface vehicle mission controller:
-1. Acquires real-time GPS position (GPGLL) and calibrated compass heading.
-2. Projects coordinates to local Cartesian metric frame (x=East, y=North).
-3. Sequences through mission waypoints with arrival detection.
-4. Steers using Prof. Luc Jaulin's sawtooth heading error law.
-5. Shuts down cleanly and logs telemetry to mission_log.csv.
-
-Heading convention:
-    Marine Clockwise Compass: 0° = North, 90° = East, 180° = South, 270° = West
-
-Usage:
-    python3 waypoint_mission.py
+DD-Boat 11 - High-Precision Autonomous Waypoint Mission
+======================================================
+Features:
+1. Sharp In-Place Pivot Turns (Tank Turn) at corners when |error| > 35°
+2. High-speed straight-line tracking when aligned (|error| <= 35°)
+3. Realistic Lake Scale: 15m x 15m rectangular circuit
+4. Robust corner passage detection (no infinite overshoots)
+5. Continuous logging to mission_log.csv
 """
 
 import sys
@@ -66,12 +59,13 @@ def get_heading(imu, invA, xbar):
     raw = np.array(imu.read_mag_raw()).reshape((3, 1))
     calib = invA @ (raw - xbar)
     mx, my, _ = calib.flatten()
+    # Geographic marine compass: 0=N, 90=E, 180=S, 270=W
     return math.atan2(my, mx)
 
 def main():
-    print("=" * 60)
-    print("      DD-BOAT 11 : AUTONOMOUS WAYPOINT MISSION            ")
-    print("=" * 60)
+    print("=" * 65)
+    print("   DD-BOAT 11 : SHARP-TURN AUTONOMOUS WAYPOINT MISSION    ")
+    print("=" * 65)
 
     try:
         import gps_driver_v2 as gpddrv
@@ -81,40 +75,45 @@ def main():
         imu = imudrv.Imu9IO()
         ard = arddrv.ArduinoIO()
         gps.set_filter_speed("0")
-        print("[OK] All hardware drivers connected.")
+        ard.send_arduino_cmd_motor(0, 0)
+        print("[OK] Drivers connected and motors initialized at 0.")
     except Exception as e:
         print("[ERROR] Driver connection failed: {}".format(e))
         return
 
     invA, xbar = load_calibration()
 
-    print("Waiting for initial GPS fix...")
+    print("Acquiring GPS fix...")
     cur_x, cur_y = None, None
     while cur_x is None:
         ok, data = gps.read_gll_non_blocking()
         if ok:
             lat, lon = cvt_gll_ddmm_2_dd(data)
             cur_x, cur_y = latlon_to_meters(lat, lon)
-            print("[GPS LOCKED] Initial position: X={:.1f}m, Y={:.1f}m".format(cur_x, cur_y))
+            print("[GPS LOCKED] Start Position: X={:.1f}m, Y={:.1f}m".format(cur_x, cur_y))
         time.sleep(0.2)
 
+    # 15m x 15m clean rectangular course
+    BOX_SIZE = 15.0
     waypoints_metric = [
-        (cur_x + 10.0, cur_y + 0.0),
-        (cur_x + 10.0, cur_y + 10.0),
-        (cur_x + 0.0,  cur_y + 10.0),
-        (cur_x + 0.0,  cur_y + 0.0),
+        (cur_x + BOX_SIZE, cur_y + 0.0),       # WP1: 15m East
+        (cur_x + BOX_SIZE, cur_y + BOX_SIZE),  # WP2: 15m North-East
+        (cur_x + 0.0,      cur_y + BOX_SIZE),  # WP3: 15m North
+        (cur_x + 0.0,      cur_y + 0.0),       # WP4: Back Home
     ]
 
     wp_index = 0
-    ARRIVAL_RADIUS = 2.5
-    BASE_SPEED = 45.0
-    Kp = 40.0
+    min_dist_to_wp = 999.0
+    ARRIVAL_RADIUS = 3.5  # meters
+    CRUISE_SPEED = 70     # straight line thrust
+    PIVOT_SPEED = 75      # sharp turn thrust (in-place rotation)
+    Kp = 28.0
 
     log_file = "mission_log.csv"
     with open(log_file, "w") as f:
         f.write("time,x,y,target_x,target_y,wp_idx,heading_deg,error_deg,u1,u2\n")
 
-    print("\nMission armed with {} waypoints. Starting navigation!\n".format(len(waypoints_metric)))
+    print("\nMission started with 4 waypoints (15m box). Press Ctrl+C to abort.\n")
 
     try:
         while wp_index < len(waypoints_metric):
@@ -126,41 +125,72 @@ def main():
             tx, ty = waypoints_metric[wp_index]
             dist = math.hypot(tx - cur_x, ty - cur_y)
 
-            if dist < ARRIVAL_RADIUS:
-                print("\n>>> WAYPOINT {} REACHED (dist={:.1f}m)! Moving to next...".format(wp_index + 1, dist))
+            # Check waypoint arrival or corner clip:
+            if dist <= ARRIVAL_RADIUS or (min_dist_to_wp <= 4.5 and dist > min_dist_to_wp + 0.8):
+                print("\n" + "=" * 55)
+                print(">>> WAYPOINT {} REACHED (dist={:.1f}m, closest={:.1f}m)!".format(
+                    wp_index + 1, dist, min_dist_to_wp))
                 wp_index += 1
+                min_dist_to_wp = 999.0
                 if wp_index >= len(waypoints_metric):
                     break
+                print(">>> Turning towards Waypoint {}/{}...".format(wp_index + 1, len(waypoints_metric)))
+                print("=" * 55 + "\n")
                 tx, ty = waypoints_metric[wp_index]
+                # Brief pause at corner to kill forward momentum before turning
+                ard.send_arduino_cmd_motor(0, 0)
+                time.sleep(0.4)
+                continue
 
+            if dist < min_dist_to_wp:
+                min_dist_to_wp = dist
+
+            # Nautical desired heading (0=N, 90=E)
             theta_d = math.atan2(tx - cur_x, ty - cur_y)
             theta = get_heading(imu, invA, xbar)
-
             e_theta = sawtooth(theta_d - theta)
-            # Prof. Luc Jaulin's proportional steering law (speech_best26.pdf):
-            u1 = int(np.clip(BASE_SPEED + Kp * e_theta, -100, 100))
-            u2 = int(np.clip(BASE_SPEED - Kp * e_theta, -100, 100))
+            e_deg = math.degrees(e_theta)
+
+            # -------------------------------------------------------------
+            # SHARP TURN CONTROLLER:
+            # If heading error is large (> 35°), do an IN-PLACE PIVOT TURN!
+            # Zero forward motion: one motor +PIVOT, other -PIVOT.
+            # -------------------------------------------------------------
+            if abs(e_deg) > 35.0:
+                mode = "PIVOT"
+                if e_theta > 0:
+                    # Turn Clockwise: Left forward, Right reverse
+                    u1 = +PIVOT_SPEED
+                    u2 = -PIVOT_SPEED
+                else:
+                    # Turn Counter-Clockwise: Left reverse, Right forward
+                    u1 = -PIVOT_SPEED
+                    u2 = +PIVOT_SPEED
+            else:
+                # Aligned with waypoint: CRUISE FORWARD with smooth steering trim
+                mode = "CRUISE"
+                u1 = int(np.clip(CRUISE_SPEED + Kp * e_theta, 0, 110))
+                u2 = int(np.clip(CRUISE_SPEED - Kp * e_theta, 0, 110))
 
             ard.send_arduino_cmd_motor(u1, u2)
 
             h_deg = (math.degrees(theta) + 360) % 360
-            e_deg = math.degrees(e_theta)
-            print("WP {}/{} | Dist: {:4.1f}m | Pos: ({:5.1f}, {:5.1f}) | Heading: {:5.1f}° | Err: {:+5.1f}° | Motors: ({:+3d}, {:+3d})".format(
-                wp_index+1, len(waypoints_metric), dist, cur_x, cur_y, h_deg, e_deg, u1, u2))
+            print("[{:6s}] WP {}/{} | Dist: {:4.1f}m | Hdg: {:5.1f}° | Err: {:+5.1f}° | M: ({:+4d}, {:+4d})".format(
+                mode, wp_index + 1, len(waypoints_metric), dist, h_deg, e_deg, u1, u2))
 
             with open(log_file, "a") as f:
                 f.write("{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{},{:.1f},{:.1f},{},{}\n".format(
                     time.time(), cur_x, cur_y, tx, ty, wp_index, h_deg, e_deg, u1, u2))
 
-            time.sleep(0.2)
+            time.sleep(0.12)
 
-        print("\n\nMISSION ACCOMPLISHED! All waypoints reached.")
+        print("\n\nMISSION COMPLETE! DD-Boat returned home.")
 
     except KeyboardInterrupt:
-        print("\n\nMission interrupted by user (Ctrl+C).")
+        print("\n\nCtrl+C detected - stopping motors.")
     finally:
         ard.send_arduino_cmd_motor(0, 0)
-        print("Motors stopped. Mission log saved to 'mission_log.csv'.")
+        print("Motors safe (0, 0).")
 
 if __name__ == "__main__":
     main()
