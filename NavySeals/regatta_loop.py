@@ -1,16 +1,22 @@
 #!/usr/bin/env python3
 """
-DD-Boat 11 - Autonomous Regatta Competition Controller
-======================================================
-Course: BEST 2026 (Guerledan Lake)
-Challenge: Exercise 13 (DD Regatta), Chapter 4 of drones.pdf
+DD-Boat 11 - Autonomous Regatta Competition Circuit Controller
+==============================================================
+Official Task: Exercise 13 (DD Regatta), Page 76 of drones.pdf
+Prof. Luc Jaulin & Prof. Benoit Zerr
+
+Competition Rules:
+- 5-Minute autonomous window.
+- Green Gate (Eastbound crossing = +1 pt).
+- Red Gate (Westbound crossing = +1 pt).
+- Wrong direction crossing = -1 pt penalty!
+- Winning Strategy: Counter-Clockwise Loop through both gates continuously!
 
 Features:
-- Relative Gate Positioning: Automatically creates Gate A (15m East) and Gate B (25m NE) from launch spot
-- In-Place Pivot 180° Turnaround at gates (|error| > 35°)
-- Fast Straight Cruise between gates (|error| <= 35°)
-- Automatic Lap & Score tracking
-- Outputs both regatta_log.csv and regatta_track.kml for jury inspection
+- Zero-lag GPS buffer flushing (reads freshest live fix every iteration).
+- No-fix coordinate rejection.
+- Smooth heading control with in-place pivot turns for sharp corners.
+- Logs regatta_log.csv and regatta_track.kml for the jury.
 """
 
 import sys
@@ -20,13 +26,11 @@ import math
 import json
 import numpy as np
 
-# Access drivers
 sys.path.append(os.path.join(os.path.dirname(__file__), 'drivers-ddboat-v2'))
 from arduino_driver_v2 import ArduinoIO
 from gps_driver_v2 import GpsIO
 from imu9_driver_v2 import Imu9IO
 
-# Lake Guerledan Reference
 REF_LAT = 48.199111
 REF_LON = -3.014930
 R_EARTH = 6371000.0
@@ -58,9 +62,7 @@ def load_calibration():
         try:
             with open(calib_file, "r") as f:
                 data = json.load(f)
-            xbar = np.array(data["xbar"]).reshape((3, 1))
-            invA = np.array(data["invA"]).reshape((3, 3))
-            return invA, xbar
+            return np.array(data["invA"]).reshape((3, 3)), np.array(data["xbar"]).reshape((3, 1))
         except Exception:
             pass
     return np.eye(3), np.zeros((3, 1))
@@ -73,13 +75,24 @@ def get_calibrated_heading(imu, invA, xbar):
     heading_deg = (math.degrees(heading_rad) + 360.0) % 360.0
     return heading_rad, heading_deg
 
+def read_freshest_gps_fix(gps, max_drain=35):
+    fresh_fix = None
+    for _ in range(max_drain):
+        if hasattr(gps, 'ser') and gps.ser.in_waiting == 0:
+            break
+        ok, data = gps.read_gll_non_blocking()
+        if ok and len(data) > 3:
+            if data[0] != 0.0 and data[2] != 0.0:
+                fresh_fix = cvt_gll_ddmm_2_dd(data)
+    return fresh_fix
+
 def save_kml_track(track_points, filename="regatta_track.kml"):
     coord_str = " ".join(["{:.7f},{:.7f},0.0".format(p[1], p[0]) for p in track_points])
     kml = [
         '<?xml version="1.0" encoding="UTF-8"?>',
         '<kml xmlns="http://www.opengis.net/kml/2.2">',
         '  <Document>',
-        '    <name>DD-Boat 11 Regatta Run</name>',
+        '    <name>DD-Boat 11 Official Regatta Run</name>',
         '    <Style id="regattaLine"><LineStyle><color>ff00aa00</color><width>4</width></LineStyle></Style>',
         '    <Placemark>',
         '      <name>Regatta Trajectory</name>',
@@ -95,116 +108,117 @@ def save_kml_track(track_points, filename="regatta_track.kml"):
 
 def main():
     print("=" * 65)
-    print("       DD-BOAT 11 : AUTONOMOUS REGATTA RUNNER (5 MIN)        ")
-    print("       Exercise 13 (DD Regatta) - Friday Competition         ")
+    print("       DD-BOAT 11 : EXERCISE 13 REGATTA COMPETITION LOOP     ")
+    print("       (Counter-Clockwise Non-Stop Gate Scoring Loop)        ")
     print("=" * 65)
 
-    # Initialize Hardware
     ard = ArduinoIO()
     imu = Imu9IO()
     gps = GpsIO()
     gps.set_filter_speed("0")
     invA, xbar = load_calibration()
 
-    print("[OK] Hardware connected. Calibration parameters loaded.")
-
-    # Wait for initial GPS fix to establish local reference
-    print("Waiting for initial GPS fix before countdown...")
+    print("Flushing GPS buffer & locking initial position...")
     cur_x, cur_y = None, None
     while cur_x is None:
-        ok, gll_pos = gps.read_gll_non_blocking()
-        if ok:
-            lat, lon = cvt_gll_ddmm_2_dd(gll_pos)
+        fix = read_freshest_gps_fix(gps)
+        if fix is not None:
+            lat, lon = fix
             cur_x, cur_y = latlon_to_meters(lat, lon)
-            print("[GPS READY] Start Position: x={:.1f}m, y={:.1f}m".format(cur_x, cur_y))
-            break
-        time.sleep(0.1)
+            print("[GPS READY] Launch Start: x={:.1f}m, y={:.1f}m".format(cur_x, cur_y))
+        time.sleep(0.15)
 
-    # Relative competition gates from current launch position:
-    # Gate A is 12m East, Gate B is 28m East-North-East
-    GATE_A_METRIC = (cur_x + 10.0, cur_y + 0.0)
-    GATE_B_METRIC = (cur_x + 25.0, cur_y + 15.0)
+    # -------------------------------------------------------------
+    # Exercise 13 Circuit (Counter-Clockwise Scoring Loop):
+    # Crosses Green Gate Eastbound -> turns North -> crosses Red Gate Westbound -> repeats
+    # -------------------------------------------------------------
+    circuit = [
+        (cur_x + 5.0,  cur_y + 2.5),   # Point 1: Pre-Green Gate
+        (cur_x + 12.0, cur_y + 2.5),   # Point 2: Cross Green Gate Eastbound (+1 PT!)
+        (cur_x + 16.0, cur_y + 10.0),  # Point 3: Round North-East Corner
+        (cur_x + 12.0, cur_y + 17.5),  # Point 4: Pre-Red Gate
+        (cur_x + 5.0,  cur_y + 17.5),  # Point 5: Cross Red Gate Westbound (+1 PT!)
+        (cur_x + 0.0,  cur_y + 10.0),  # Point 6: Round South-West Corner back to start
+    ]
 
-    GATES = [GATE_A_METRIC, GATE_B_METRIC]
-    GATE_NAMES = ["GATE A (Green Buoy)", "GATE B (Red Buoy)"]
-    current_gate_idx = 0
-
-    R_ARRIVAL = 2.2        # Tighter arrival to round the buoy
-    CRUISE_SPEED = 75      # Fast dash between gates
-    PIVOT_SPEED = 80       # Sharp 180° turnaround
+    wp_idx = 0
+    prev_x, prev_y = cur_x, cur_y
+    min_dist = 999.0
+    ARRIVAL_RADIUS = 2.5
+    CRUISE_SPEED = 75
+    PIVOT_SPEED = 80
     Kp = 30.0
-    RACE_DURATION = 300.0  # 5 minutes competition window
+    RACE_DURATION = 300.0 # 5 minutes
+
+    pivot_latch_dir = 0
+    score = 0
+    laps = 0
 
     log_file = "regatta_log.csv"
     with open(log_file, "w") as f:
-        f.write("timestamp,t_elapsed,lat,lon,x,y,target_gate,gate_x,gate_y,dist,heading,score\n")
+        f.write("time,x,y,tx,ty,wp_idx,score,laps,heading,error,u1,u2\n")
 
     track_points = []
-    score = 0
-    min_dist_to_gate = 999.0
-
-    print("\n>>> REGATTA RACE STARTED! 5-MINUTE COUNTDOWN ENGAGED <<<")
-    print("Press Ctrl+C at any time for EMERGENCY STOP.\n")
-
     t_start = time.time()
+    print("\n>>> REGATTA RACE STARTED! 5-MINUTE COMPETITION COUNTDOWN ENGAGED <<<\n")
 
     try:
         while (time.time() - t_start) < RACE_DURATION:
-            now = time.time()
-            t_elapsed = now - t_start
-            t_remaining = max(0.0, RACE_DURATION - t_elapsed)
+            t_elapsed = time.time() - t_start
+            t_rem = max(0.0, RACE_DURATION - t_elapsed)
 
-            # 1. Update GPS
-            ok, gll_pos = gps.read_gll_non_blocking()
-            if ok:
-                lat, lon = cvt_gll_ddmm_2_dd(gll_pos)
+            fix = read_freshest_gps_fix(gps)
+            if fix is not None:
+                lat, lon = fix
                 cur_x, cur_y = latlon_to_meters(lat, lon)
                 track_points.append((lat, lon))
 
-            # 2. Distance and Vector to Active Gate
-            target_x, target_y = GATES[current_gate_idx]
-            dx = target_x - cur_x
-            dy = target_y - cur_y
-            dist_to_gate = math.hypot(dx, dy)
+            tx, ty = circuit[wp_idx]
+            dist = math.hypot(tx - cur_x, ty - cur_y)
 
-            # 3. Gate Crossing Check (inside 2.2m or closest pass <= 3.0m)
-            if dist_to_gate <= R_ARRIVAL or (min_dist_to_gate <= 3.0 and dist_to_gate > min_dist_to_gate + 0.6):
-                score += 1
-                crossed_gate = GATE_NAMES[current_gate_idx]
-                current_gate_idx = 1 - current_gate_idx  # Toggle target buoy
-                next_gate = GATE_NAMES[current_gate_idx]
-                min_dist_to_gate = 999.0
-                print("\n" + "*" * 60)
-                print(">>> CROSSED {}! SCORE = {} PTS <<<".format(crossed_gate, score))
-                print(">>> 180° PIVOT TO: {} <<<".format(next_gate))
-                print("*" * 60 + "\n")
-                # Momentum cut
-                ard.send_arduino_cmd_motor(0, 0)
-                time.sleep(0.4)
-                target_x, target_y = GATES[current_gate_idx]
-                dx = target_x - cur_x
-                dy = target_y - cur_y
-                dist_to_gate = math.hypot(dx, dy)
+            # Perpendicular finish line crossing detection
+            leg_dx = tx - prev_x
+            leg_dy = ty - prev_y
+            passed = ((cur_x - tx) * leg_dx + (cur_y - ty) * leg_dy) > 0
+
+            if dist <= ARRIVAL_RADIUS or (min_dist <= 3.5 and passed):
+                # Scoring check: Point 2 is Green Gate, Point 5 is Red Gate
+                if wp_idx == 1:
+                    score += 1
+                    print("\n*** SCORED GREEN GATE EASTBOUND! TOTAL = {} PTS ***\n".format(score))
+                elif wp_idx == 4:
+                    score += 1
+                    print("\n*** SCORED RED GATE WESTBOUND! TOTAL = {} PTS ***\n".format(score))
+
+                prev_x, prev_y = tx, ty
+                wp_idx = (wp_idx + 1) % len(circuit)
+                if wp_idx == 0:
+                    laps += 1
+                    print("\n=== LAP {} COMPLETED! SCORE: {} PTS ===\n".format(laps, score))
+
+                min_dist = 999.0
+                pivot_latch_dir = 0
+                tx, ty = circuit[wp_idx]
                 continue
 
-            if dist_to_gate < min_dist_to_gate:
-                min_dist_to_gate = dist_to_gate
+            if dist < min_dist:
+                min_dist = dist
 
-            # 4. Heading & Steering Law
-            theta_desired_rad = math.atan2(dx, dy)  # Marine angle (0=N, +90=E)
+            theta_d = math.atan2(tx - cur_x, ty - cur_y)
             heading_rad, heading_deg = get_calibrated_heading(imu, invA, xbar)
-            e_theta = sawtooth(theta_desired_rad - heading_rad)
+            e_theta = sawtooth(theta_d - heading_rad)
             e_deg = math.degrees(e_theta)
 
-            # 5. In-Place Pivot (180° turnaround) vs Straight Dash
-            if abs(e_deg) > 35.0:
+            # Pivot with hysteresis vs cruise
+            if pivot_latch_dir == 0 and abs(e_deg) > 40.0:
+                pivot_latch_dir = 1 if e_theta > 0 else -1
+            elif pivot_latch_dir != 0 and abs(e_deg) < 20.0:
+                pivot_latch_dir = 0
+
+            if pivot_latch_dir != 0:
                 mode = "PIVOT"
-                if e_theta > 0:
-                    u1 = +PIVOT_SPEED
-                    u2 = -PIVOT_SPEED
-                else:
-                    u1 = -PIVOT_SPEED
-                    u2 = +PIVOT_SPEED
+                u1 = int(+pivot_latch_dir * PIVOT_SPEED)
+                u2 = int(-pivot_latch_dir * PIVOT_SPEED)
             else:
                 mode = "CRUISE"
                 u1 = int(np.clip(CRUISE_SPEED + Kp * e_theta, 0, 115))
@@ -212,26 +226,22 @@ def main():
 
             ard.send_arduino_cmd_motor(u1, u2)
 
-            # 6. Live Scrolling Telemetry
-            print("[{:5.1f}s | {:6s}] Target: {:18s} (Dist: {:4.1f}m) | Score: {:2d} | Hdg: {:5.1f}° | Err: {:+5.1f}°".format(
-                t_elapsed, mode, GATE_NAMES[current_gate_idx], dist_to_gate, score, heading_deg, e_deg))
+            print("[{:5.1f}s | Rem:{:3.0f}s] WP:{}/{} | Dist:{:4.1f}m | Score:{:2d} | Laps:{} | Hdg:{:5.1f}° | Err:{:+5.1f}°".format(
+                t_elapsed, t_rem, wp_idx + 1, len(circuit), dist, score, laps, heading_deg, e_deg))
 
-            # 7. Log entry
             with open(log_file, "a") as f:
-                f.write("{:.2f},{:.1f},{:.7f},{:.7f},{:.2f},{:.2f},{},{:.2f},{:.2f},{:.2f},{:.1f},{}\n".format(
-                    now, t_elapsed, lat, lon, cur_x, cur_y, GATE_NAMES[current_gate_idx], target_x, target_y, dist_to_gate, heading_deg, score))
+                f.write("{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{},{},{},{:.1f},{:.1f},{},{}\n".format(
+                    time.time(), cur_x, cur_y, tx, ty, wp_idx, score, laps, heading_deg, e_deg, u1, u2))
 
-            time.sleep(0.12)
+            time.sleep(0.08)
 
-        print("\n\n" + "=" * 60)
-        print(">>> 5-MINUTE RACE TIME EXPIRED! FINAL SCORE: {} POINTS <<<".format(score))
-        print("=" * 60)
+        print("\n\n>>> RACE FINISHED! TOTAL SCORE: {} POINTS ({} LAPS) <<<".format(score, laps))
 
     except KeyboardInterrupt:
         print("\n\nManual override / Ctrl+C detected.")
     finally:
         ard.send_arduino_cmd_motor(0, 0)
-        print("[OK] Motors shut down. Final telemetry saved to '{}'.".format(log_file))
+        print("Motors stopped safely (0,0).")
         if track_points:
             save_kml_track(track_points, "regatta_track.kml")
 

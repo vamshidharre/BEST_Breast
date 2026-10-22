@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-DD-Boat 11 - High-Precision Autonomous Waypoint Mission
-======================================================
-Features:
-1. Sharp In-Place Pivot Turns (Tank Turn) at corners when |error| > 35°
-2. High-speed straight-line tracking when aligned (|error| <= 35°)
-3. Realistic Lake Scale: 15m x 15m rectangular circuit
-4. Robust corner passage detection (no infinite overshoots)
-5. Continuous logging to mission_log.csv
+DD-Boat 11 - High-Precision Autonomous Waypoint Mission (Production V3)
+=====================================================================
+Fixes & Enhancements:
+1. GPS Buffer Flush: Drains all pending serial buffer lines so position is FRESH (0 lag)
+2. No-Fix Rejection: Ignores empty/zero coordinate frames
+3. Latching Pivot Turn: Smooth in-place rotation with hysteresis (no 180° jitter)
+4. Passed-Line Waypoint Validation: Uses vector dot-product perpendicular crossing test
+5. Fast Straight Cruise with Proportional Steering
 """
 
 import sys
@@ -50,7 +50,7 @@ def load_calibration():
         try:
             with open(calib_file, "r") as f:
                 data = json.load(f)
-            return np.array(data["invA"]), np.array(data["xbar"]).reshape((3, 1))
+            return np.array(data["invA"]).reshape((3, 3)), np.array(data["xbar"]).reshape((3, 1))
         except Exception:
             pass
     return np.eye(3), np.zeros((3, 1))
@@ -59,12 +59,27 @@ def get_heading(imu, invA, xbar):
     raw = np.array(imu.read_mag_raw()).reshape((3, 1))
     calib = invA @ (raw - xbar)
     mx, my, _ = calib.flatten()
-    # Geographic marine compass: 0=N, 90=E, 180=S, 270=W
     return math.atan2(my, mx)
+
+def read_freshest_gps_fix(gps, max_drain=35):
+    """
+    Drains all accumulated lines in the serial buffer so we never steer
+    on old, backlogged GPS data. Returns (lat, lon) or None.
+    """
+    fresh_fix = None
+    for _ in range(max_drain):
+        if hasattr(gps, 'ser') and gps.ser.in_waiting == 0:
+            break
+        ok, data = gps.read_gll_non_blocking()
+        if ok and len(data) > 3:
+            # Filter out no-fix sentences (0.0, 0.0)
+            if data[0] != 0.0 and data[2] != 0.0:
+                fresh_fix = cvt_gll_ddmm_2_dd(data)
+    return fresh_fix
 
 def main():
     print("=" * 65)
-    print("   DD-BOAT 11 : SHARP-TURN AUTONOMOUS WAYPOINT MISSION    ")
+    print("   DD-BOAT 11 : ZERO-LAG AUTONOMOUS WAYPOINT MISSION (V3) ")
     print("=" * 65)
 
     try:
@@ -83,92 +98,95 @@ def main():
 
     invA, xbar = load_calibration()
 
-    print("Acquiring GPS fix...")
+    print("Acquiring fresh GPS lock (draining buffer)...")
     cur_x, cur_y = None, None
     while cur_x is None:
-        ok, data = gps.read_gll_non_blocking()
-        if ok:
-            lat, lon = cvt_gll_ddmm_2_dd(data)
+        fix = read_freshest_gps_fix(gps)
+        if fix is not None:
+            lat, lon = fix
             cur_x, cur_y = latlon_to_meters(lat, lon)
-            print("[GPS LOCKED] Start Position: X={:.1f}m, Y={:.1f}m".format(cur_x, cur_y))
-        time.sleep(0.2)
+            print("[GPS LOCKED] Realtime Start Position: X={:.1f}m, Y={:.1f}m".format(cur_x, cur_y))
+        time.sleep(0.15)
 
-    # 15m x 15m clean rectangular course
     BOX_SIZE = 15.0
     waypoints_metric = [
         (cur_x + BOX_SIZE, cur_y + 0.0),       # WP1: 15m East
         (cur_x + BOX_SIZE, cur_y + BOX_SIZE),  # WP2: 15m North-East
         (cur_x + 0.0,      cur_y + BOX_SIZE),  # WP3: 15m North
-        (cur_x + 0.0,      cur_y + 0.0),       # WP4: Back Home
+        (cur_x + 0.0,      cur_y + 0.0),       # WP4: Home
     ]
 
     wp_index = 0
+    prev_wp_x, prev_wp_y = cur_x, cur_y
     min_dist_to_wp = 999.0
-    ARRIVAL_RADIUS = 2.2  # meters (tight cornering)
-    CRUISE_SPEED = 70     # straight line thrust
-    PIVOT_SPEED = 75      # sharp turn thrust (in-place rotation)
+    ARRIVAL_RADIUS = 2.5
+    CRUISE_SPEED = 70
+    PIVOT_SPEED = 75
     Kp = 28.0
+
+    pivot_latch_dir = 0 # -1 for CCW, +1 for CW, 0 for inactive
 
     log_file = "mission_log.csv"
     with open(log_file, "w") as f:
         f.write("time,x,y,target_x,target_y,wp_idx,heading_deg,error_deg,u1,u2\n")
 
-    print("\nMission started with 4 waypoints (15m box). Press Ctrl+C to abort.\n")
+    print("\nMission armed (15m box). Zero lag enabled. Press Ctrl+C to stop.\n")
 
     try:
         while wp_index < len(waypoints_metric):
-            ok, data = gps.read_gll_non_blocking()
-            if ok:
-                lat, lon = cvt_gll_ddmm_2_dd(data)
+            # 1. Always drain serial buffer to get the freshest live GPS reading
+            fix = read_freshest_gps_fix(gps)
+            if fix is not None:
+                lat, lon = fix
                 cur_x, cur_y = latlon_to_meters(lat, lon)
 
             tx, ty = waypoints_metric[wp_index]
             dist = math.hypot(tx - cur_x, ty - cur_y)
 
-            # Check waypoint arrival or corner clip:
-            # Reaches within 2.2m or passes within 3.0m
-            if dist <= ARRIVAL_RADIUS or (min_dist_to_wp <= 3.0 and dist > min_dist_to_wp + 0.6):
+            # 2. Prof. Luc Jaulin's perpendicular finish-line crossing condition:
+            # Vector (target - prev_wp) dot (current_pos - target) > 0 means boat passed the waypoint line
+            leg_dx = tx - prev_wp_x
+            leg_dy = ty - prev_wp_y
+            passed_line = ((cur_x - tx) * leg_dx + (cur_y - ty) * leg_dy) > 0
+
+            # Waypoint Arrival Check
+            if dist <= ARRIVAL_RADIUS or (min_dist_to_wp <= 3.5 and passed_line):
                 print("\n" + "=" * 55)
-                print(">>> WAYPOINT {} REACHED (dist={:.1f}m, closest={:.1f}m)!".format(
-                    wp_index + 1, dist, min_dist_to_wp))
+                print(">>> WAYPOINT {} VALIDATED (dist={:.1f}m, passed={})!".format(
+                    wp_index + 1, dist, passed_line))
+                prev_wp_x, prev_wp_y = tx, ty
                 wp_index += 1
                 min_dist_to_wp = 999.0
+                pivot_latch_dir = 0
                 if wp_index >= len(waypoints_metric):
                     break
-                print(">>> Turning towards Waypoint {}/{}...".format(wp_index + 1, len(waypoints_metric)))
+                print(">>> Advancing to Waypoint {}/{}...".format(wp_index + 1, len(waypoints_metric)))
                 print("=" * 55 + "\n")
                 tx, ty = waypoints_metric[wp_index]
-                # Brief pause at corner to kill forward momentum before turning
                 ard.send_arduino_cmd_motor(0, 0)
-                time.sleep(0.4)
+                time.sleep(0.3)
                 continue
 
             if dist < min_dist_to_wp:
                 min_dist_to_wp = dist
 
-            # Nautical desired heading (0=N, 90=E)
+            # 3. Nautical bearing & heading error
             theta_d = math.atan2(tx - cur_x, ty - cur_y)
             theta = get_heading(imu, invA, xbar)
             e_theta = sawtooth(theta_d - theta)
             e_deg = math.degrees(e_theta)
 
-            # -------------------------------------------------------------
-            # SHARP TURN CONTROLLER:
-            # If heading error is large (> 35°), do an IN-PLACE PIVOT TURN!
-            # Zero forward motion: one motor +PIVOT, other -PIVOT.
-            # -------------------------------------------------------------
-            if abs(e_deg) > 35.0:
+            # 4. In-Place Pivot Turn with Hysteresis Latching (prevents 180° flip-flop)
+            if pivot_latch_dir == 0 and abs(e_deg) > 40.0:
+                pivot_latch_dir = 1 if e_theta > 0 else -1
+            elif pivot_latch_dir != 0 and abs(e_deg) < 20.0:
+                pivot_latch_dir = 0 # Exit pivot mode when aligned within 20°
+
+            if pivot_latch_dir != 0:
                 mode = "PIVOT"
-                if e_theta > 0:
-                    # Turn Clockwise: Left forward, Right reverse
-                    u1 = +PIVOT_SPEED
-                    u2 = -PIVOT_SPEED
-                else:
-                    # Turn Counter-Clockwise: Left reverse, Right forward
-                    u1 = -PIVOT_SPEED
-                    u2 = +PIVOT_SPEED
+                u1 = int(+pivot_latch_dir * PIVOT_SPEED)
+                u2 = int(-pivot_latch_dir * PIVOT_SPEED)
             else:
-                # Aligned with waypoint: CRUISE FORWARD with smooth steering trim
                 mode = "CRUISE"
                 u1 = int(np.clip(CRUISE_SPEED + Kp * e_theta, 0, 110))
                 u2 = int(np.clip(CRUISE_SPEED - Kp * e_theta, 0, 110))
@@ -183,9 +201,9 @@ def main():
                 f.write("{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{},{:.1f},{:.1f},{},{}\n".format(
                     time.time(), cur_x, cur_y, tx, ty, wp_index, h_deg, e_deg, u1, u2))
 
-            time.sleep(0.12)
+            time.sleep(0.08)
 
-        print("\n\nMISSION COMPLETE! DD-Boat returned home.")
+        print("\n\nMISSION COMPLETE! Returned to launch home.")
 
     except KeyboardInterrupt:
         print("\n\nCtrl+C detected - stopping motors.")
