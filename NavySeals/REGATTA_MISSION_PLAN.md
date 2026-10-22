@@ -61,8 +61,9 @@ Upon arrival, the active target instantly toggles to the next gate ($A \to B$ or
 | **2** | Test motors | `python3 motor_test.py` spins cleanly |
 | **3** | Check compass calibration | `python3 calib.py` (verify with phone compass) |
 | **4** | Acquire GPS satellite lock | `python3 gps.py` streaming valid GPGLL fixes |
-| **5** | Input Gate Coordinates | Update $A$ and $B$ coordinates in `waypoint_mission.py` |
-| **6** | Arm Telemetry Logger | Ensure `mission_log.csv` is being recorded |
+| **5** | Input Gate Coordinates | Copy `regatta_gates.example.json` to `regatta_gates.json`; enter each gate's two endpoints (lat, lon) and its +1 direction (`plus_heading_deg`) |
+| **6** | Check the course printout | At start the script lists each gate's length and distance from launch, then the circuit; it aborts on bad gate data |
+| **7** | Telemetry | `regatta_log.csv` and `regatta_track.kml` (track + gates) are written for the jury |
 
 ---
 
@@ -70,8 +71,10 @@ Upon arrival, the active target instantly toggles to the next gate ($A \to B$ or
 
 In your SSH terminal on Boat 11:
 ```bash
-# Launch the 5-minute autonomous regatta mission:
-python3 waypoint_mission.py
+# Launch the 5-minute autonomous regatta (reads regatta_gates.json next to the script):
+python3 regatta_loop.py
+# or with another gate file:
+python3 regatta_loop.py my_gates.json
 
 # In case of obstacle or emergency:
 python3 stop.py
