@@ -45,14 +45,17 @@ def sawtooth(a):
     return math.atan2(math.sin(a), math.cos(a))
 
 def load_calibration():
-    calib_file = "calib_boat11.json"
+    # Load from same directory as this script regardless of current working directory
+    calib_file = os.path.join(os.path.dirname(__file__), "calib_boat11.json")
     if os.path.exists(calib_file):
         try:
             with open(calib_file, "r") as f:
                 data = json.load(f)
+            print("[OK] Loaded calibration from: {}".format(calib_file))
             return np.array(data["invA"]).reshape((3, 3)), np.array(data["xbar"]).reshape((3, 1))
-        except Exception:
-            pass
+        except Exception as e:
+            print("[WARN] Error parsing {}: {}".format(calib_file, e))
+    print("[WARN] calib_boat11.json not found! Running with uncalibrated identity.")
     return np.eye(3), np.zeros((3, 1))
 
 def get_heading(imu, invA, xbar):
@@ -125,20 +128,32 @@ def main():
     Kp = 28.0
 
     pivot_latch_dir = 0 # -1 for CCW, +1 for CW, 0 for inactive
+    last_valid_gps_time = time.time()
+    GPS_TIMEOUT = 3.0 # Cut motors if no GPS fix for 3.0 seconds (Safety Watchdog)
 
     log_file = "mission_log.csv"
     with open(log_file, "w") as f:
         f.write("time,x,y,target_x,target_y,wp_idx,heading_deg,error_deg,u1,u2\n")
 
-    print("\nMission armed (15m box). Zero lag enabled. Press Ctrl+C to stop.\n")
+    print("\nMission armed (15m box). Zero lag + GPS watchdog enabled. Press Ctrl+C to stop.\n")
 
     try:
         while wp_index < len(waypoints_metric):
+            now = time.time()
             # 1. Always drain serial buffer to get the freshest live GPS reading
             fix = read_freshest_gps_fix(gps)
             if fix is not None:
                 lat, lon = fix
                 cur_x, cur_y = latlon_to_meters(lat, lon)
+                last_valid_gps_time = now
+
+            # GPS DROPOUT SAFETY WATCHDOG:
+            if (now - last_valid_gps_time) > GPS_TIMEOUT:
+                ard.send_arduino_cmd_motor(0, 0)
+                print("\r[GPS LOST] No fix for > {:.1f}s! Motors cut for safety...     ".format(
+                    now - last_valid_gps_time), end="", flush=True)
+                time.sleep(0.1)
+                continue
 
             tx, ty = waypoints_metric[wp_index]
             dist = math.hypot(tx - cur_x, ty - cur_y)

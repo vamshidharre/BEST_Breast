@@ -57,14 +57,16 @@ def sawtooth(x):
     return (x + np.pi) % (2 * np.pi) - np.pi
 
 def load_calibration():
-    calib_file = "calib_boat11.json"
+    calib_file = os.path.join(os.path.dirname(__file__), "calib_boat11.json")
     if os.path.exists(calib_file):
         try:
             with open(calib_file, "r") as f:
                 data = json.load(f)
+            print("[OK] Loaded calibration from: {}".format(calib_file))
             return np.array(data["invA"]).reshape((3, 3)), np.array(data["xbar"]).reshape((3, 1))
-        except Exception:
-            pass
+        except Exception as e:
+            print("[WARN] Error loading {}: {}".format(calib_file, e))
+    print("[WARN] Running with uncalibrated identity.")
     return np.eye(3), np.zeros((3, 1))
 
 def get_calibrated_heading(imu, invA, xbar):
@@ -130,15 +132,17 @@ def main():
 
     # -------------------------------------------------------------
     # Exercise 13 Circuit (Counter-Clockwise Scoring Loop):
-    # Crosses Green Gate Eastbound -> turns North -> crosses Red Gate Westbound -> repeats
+    # Generates a clean 16m x 15m rectangular corridor around the gates:
+    # Point 1 -> Cross Green Gate Eastbound (+1 PT) -> Point 3 ->
+    # Point 4 -> Cross Red Gate Westbound (+1 PT) -> Point 6 -> loop!
     # -------------------------------------------------------------
     circuit = [
-        (cur_x + 5.0,  cur_y + 2.5),   # Point 1: Pre-Green Gate
-        (cur_x + 12.0, cur_y + 2.5),   # Point 2: Cross Green Gate Eastbound (+1 PT!)
-        (cur_x + 16.0, cur_y + 10.0),  # Point 3: Round North-East Corner
-        (cur_x + 12.0, cur_y + 17.5),  # Point 4: Pre-Red Gate
-        (cur_x + 5.0,  cur_y + 17.5),  # Point 5: Cross Red Gate Westbound (+1 PT!)
-        (cur_x + 0.0,  cur_y + 10.0),  # Point 6: Round South-West Corner back to start
+        (cur_x + 2.0,  cur_y + 2.5),   # Point 1: 4m before Green Gate entry
+        (cur_x + 10.0, cur_y + 2.5),   # Point 2: 4m clear past Green Gate (+1 PT)
+        (cur_x + 14.0, cur_y + 8.5),   # Point 3: Round North-East Corner
+        (cur_x + 10.0, cur_y + 14.5),  # Point 4: 4m before Red Gate entry
+        (cur_x + 2.0,  cur_y + 14.5),  # Point 5: 4m clear past Red Gate (+1 PT)
+        (cur_x - 2.0,  cur_y + 8.5),   # Point 6: Round South-West Corner back to start
     ]
 
     wp_idx = 0
@@ -153,6 +157,8 @@ def main():
     pivot_latch_dir = 0
     score = 0
     laps = 0
+    last_valid_gps_time = time.time()
+    GPS_TIMEOUT = 3.0 # Cut motors if GPS lost for 3.0 seconds
 
     log_file = "regatta_log.csv"
     with open(log_file, "w") as f:
@@ -164,7 +170,8 @@ def main():
 
     try:
         while (time.time() - t_start) < RACE_DURATION:
-            t_elapsed = time.time() - t_start
+            now = time.time()
+            t_elapsed = now - t_start
             t_rem = max(0.0, RACE_DURATION - t_elapsed)
 
             fix = read_freshest_gps_fix(gps)
@@ -172,6 +179,15 @@ def main():
                 lat, lon = fix
                 cur_x, cur_y = latlon_to_meters(lat, lon)
                 track_points.append((lat, lon))
+                last_valid_gps_time = now
+
+            # GPS Dropout Safety Watchdog
+            if (now - last_valid_gps_time) > GPS_TIMEOUT:
+                ard.send_arduino_cmd_motor(0, 0)
+                print("\r[GPS DROPOUT] No satellites for > {:.1f}s! Motors cut...       ".format(
+                    now - last_valid_gps_time), end="", flush=True)
+                time.sleep(0.1)
+                continue
 
             tx, ty = circuit[wp_idx]
             dist = math.hypot(tx - cur_x, ty - cur_y)
