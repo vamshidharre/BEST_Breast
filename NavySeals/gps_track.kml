@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>DD-Boat 11 Track</name>
+    <Style id="yellowLine">
+      <LineStyle>
+        <color>7f00ffff</color>
+        <width>4</width>
+      </LineStyle>
+    </Style>
+    <Placemark>
+      <name>Boat 11 Trajectory</name>
+      <styleUrl>#yellowLine</styleUrl>
+      <LineString>
+        <coordinates>-3.0149233333333334,48.198916666666676,0 -3.014838333333334,48.19896833333334,0 -3.014838333333334,48.19896833333334,0 -3.01484,48.19896833333334,0 -3.01484,48.198969999999996,0</coordinates>
+      </LineString>
+    </Placemark>
+  </Document>
+</kml>

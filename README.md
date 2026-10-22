@@ -50,7 +50,11 @@ BEST_Breast/
 │   ├── heading_hold.py             # Closed-loop sawtooth proportional heading hold
 │   ├── control.py                  # "No-Kayaking" Return-to-Home (Boomerang & GPS RTH)
 │   ├── rc_teleop.py                # Wireless keyboard RC arrow-key teleoperation
-│   └── waypoint_mission.py         # Multi-waypoint GPS lake navigation
+│   ├── waypoint_mission.py         # Multi-waypoint GPS lake navigation [PASSED ON WATER]
+│   ├── regatta_loop.py             # 5-min dual-gate CCW competition loop (Exercise 13)
+│   ├── csv_to_kml.py               # Telemetry CSV to Google Earth KML converter
+│   ├── mission_track.kml           # Verified in-water 15m box trajectory track
+│   └── waypoint_box_mission_google_earth.png # Google Earth satellite track of lake mission
 │
 ├── simulation/                     # 💻 DESKTOP SIMULATION & PLANNING
 │   ├── simu.py                     # Waypoint navigation & friction simulator

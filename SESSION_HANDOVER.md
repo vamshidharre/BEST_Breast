@@ -57,7 +57,9 @@ All 27 pages of the introductory curriculum ([`best_ddboat.pdf`](file:///d:/Pers
 | **Propeller Motor Drive** | `motor_test.py` | Left=100, Right=-100 in-place turn ran for 2s, stopped `(0, 0)` | **PASSED** |
 | **GPS Georeferencing** | `gps.py` | Locked fix at $48.198795^\circ\text{ N}, -3.014180^\circ\text{ W}$ ($65.9\text{m}$ from Guerlédan reference). Saved `gps_data.kml` | **PASSED** |
 | **Bench Heading Control** | `heading_hold.py` | Proportional controller tested; dynamic motor steering verified | **PASSED** |
-| **Digital Twin & Observer** | `digital_twin_presentation.pdf` | Antoine Morvan curriculum (Dubins model, UDP link, Luenberger observer) | **IN PROGRESS (Thursday Module)** |
+| **Digital Twin Simulator** | `simu_page13.py` / `digital_twin_exercises.py` | Dubins model, discrete Euler integration, and slides 13–14 verified | **PASSED** |
+| **Autonomous Waypoint Mission (Lake Trial)** | `waypoint_mission.py` | 15m $\times$ 15m box navigated on Guerlédan Lake; 4/4 waypoints validated; returned to launch home (loop closure to 2.4m); track saved in `mission_track.kml` | **PASSED (In-Water Verified)** |
+| **Regatta Competition Loop** | `regatta_loop.py` | Exercise 13 CCW dual-gate crossing, 5-min race timer, real gate-crossing scoring, auto-KML | **BUILT (Ready for Friday)** |
 
 ---
 

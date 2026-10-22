@@ -31,6 +31,7 @@ import os
 import time
 import math
 import json
+import signal
 import numpy as np
 
 sys.path.append(os.path.join(os.path.dirname(__file__), 'drivers-ddboat-v2'))

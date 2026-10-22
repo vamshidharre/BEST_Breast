@@ -14,6 +14,11 @@ import sys
 import os
 import time
 import math
+signal = None
+try:
+    import signal
+except ImportError:
+    pass
 
 # Access to drivers
 sys.path.append(os.path.join(os.path.dirname(__file__), 'drivers-ddboat-v2'))

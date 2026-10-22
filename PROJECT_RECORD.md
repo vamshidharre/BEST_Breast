@@ -125,7 +125,7 @@ To ensure rapid execution and zero runtime bugs during field tests, keep these h
 | **Heading Controller** | `heading_hold.py` | Sawtooth proportional heading hold on water | **BUILT (Water Ready)** |
 | **Safe Retrieval (RTH)** | `control.py` | Boomerang out-and-back and GPS Return-to-Home | **BUILT (Water Ready)** |
 | **Keyboard RC Remote** | `rc_teleop.py` | Manual Arrow Key / WASD driving with 0.5s watchdog | **BUILT (Water Ready)** |
-| **GPS Waypoints** | `waypoint_mission.py` | Sequenced multi-waypoint lake mission navigator | **BUILT (Water Ready)** |
+| **GPS Waypoints** | `waypoint_mission.py` | 15m $\times$ 15m box navigated on lake, 4/4 waypoints validated, returned home | **PASSED & IN-WATER VERIFIED** |
 | **Regatta Competition** | `regatta_loop.py` | 5-minute cyclic gate-crossing loop ($A \leftrightarrow B$) with scoring | **BUILT (Competition Ready)** |
 | **Digital Twin Simulator** | `simu.py` / `roblib.py` | Dubins car & DD-boat forward kinematic integration ($dt=0.05$) | **BUILT & TESTED** |
 | **Page 13 Boat Simulator** | `simu_page13.py` | Official Page 13 Euler integration & `roblib.draw_tank` visualizer | **BUILT & TESTED** |

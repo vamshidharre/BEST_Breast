@@ -15,6 +15,7 @@ import os
 import time
 import math
 import json
+import signal
 import numpy as np
 
 sys.path.append(os.path.join(os.path.dirname(__file__), 'drivers-ddboat-v2'))
@@ -43,6 +44,37 @@ def cvt_gll_ddmm_2_dd(st):
 
 def sawtooth(a):
     return math.atan2(math.sin(a), math.cos(a))
+
+def save_kml_track(track_points, filename="mission_track.kml"):
+    """Saves accumulated (lat, lon) coordinates to KML file."""
+    if not track_points:
+        return
+    kml = [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<kml xmlns="http://www.opengis.net/kml/2.2">',
+        '<Document>',
+        '  <name>DD-Boat 11 Mission Track</name>',
+        '  <Style id="trackLine">',
+        '    <LineStyle><color>ff00ffff</color><width>4</width></LineStyle>',
+        '  </Style>',
+        '  <Placemark>',
+        '    <name>Boat 11 Trajectory ({} points)</name>'.format(len(track_points)),
+        '    <styleUrl>#trackLine</styleUrl>',
+        '    <LineString>',
+        '      <tessellate>1</tessellate>',
+        '      <coordinates>',
+        ' ' + ' '.join('{:.7f},{:.7f},0.0'.format(lon, lat) for lat, lon in track_points),
+        '      </coordinates>',
+        '    </LineString>',
+        '  </Placemark>',
+        '</Document>',
+        '</kml>'
+    ]
+    try:
+        with open(filename, "w") as f:
+            f.write('\n'.join(kml))
+    except Exception as e:
+        print("[WARN] Error writing KML: {}".format(e))
 
 def load_calibration():
     # Load from same directory as this script regardless of current working directory
@@ -131,11 +163,28 @@ def main():
     last_valid_gps_time = time.time()
     GPS_TIMEOUT = 3.0 # Cut motors if no GPS fix for 3.0 seconds (Safety Watchdog)
 
+    track_points = []
+    last_kml_save = time.time()
+
     log_file = "mission_log.csv"
     with open(log_file, "w") as f:
         f.write("time,x,y,target_x,target_y,wp_idx,heading_deg,error_deg,u1,u2\n")
 
-    print("\nMission armed (15m box). Zero lag + GPS watchdog enabled. Press Ctrl+C to stop.\n")
+    # Signal handlers so Wi-Fi/SSH drop (SIGHUP) cleanly saves KML before exit
+    def sig_handler(signum, frame):
+        print("\nSignal {} received (SSH/Wi-Fi disconnect or termination).".format(signum))
+        sys.exit(0)
+
+    try:
+        signal.signal(signal.SIGHUP, sig_handler)
+    except (AttributeError, ValueError):
+        pass
+    try:
+        signal.signal(signal.SIGTERM, sig_handler)
+    except (AttributeError, ValueError):
+        pass
+
+    print("\nMission armed (15m box). Zero lag + GPS watchdog + KML autosave enabled.\n")
 
     try:
         while wp_index < len(waypoints_metric):
@@ -146,6 +195,12 @@ def main():
                 lat, lon = fix
                 cur_x, cur_y = latlon_to_meters(lat, lon)
                 last_valid_gps_time = now
+                track_points.append((lat, lon))
+
+                # Periodic KML flush every 5s so data is never lost if Wi-Fi disconnects
+                if (now - last_kml_save) > 5.0:
+                    save_kml_track(track_points, "mission_track.kml")
+                    last_kml_save = now
 
             # GPS DROPOUT SAFETY WATCHDOG:
             if (now - last_valid_gps_time) > GPS_TIMEOUT:
@@ -225,6 +280,9 @@ def main():
     finally:
         ard.send_arduino_cmd_motor(0, 0)
         print("Motors safe (0, 0).")
+        if track_points:
+            save_kml_track(track_points, "mission_track.kml")
+            print("[OK] Final KML track saved to 'mission_track.kml' ({} points).".format(len(track_points)))
 
 if __name__ == "__main__":
     main()
