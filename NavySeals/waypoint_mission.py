@@ -104,7 +104,7 @@ def main():
 
     wp_index = 0
     min_dist_to_wp = 999.0
-    ARRIVAL_RADIUS = 3.5  # meters
+    ARRIVAL_RADIUS = 2.2  # meters (tight cornering)
     CRUISE_SPEED = 70     # straight line thrust
     PIVOT_SPEED = 75      # sharp turn thrust (in-place rotation)
     Kp = 28.0
@@ -126,7 +126,8 @@ def main():
             dist = math.hypot(tx - cur_x, ty - cur_y)
 
             # Check waypoint arrival or corner clip:
-            if dist <= ARRIVAL_RADIUS or (min_dist_to_wp <= 4.5 and dist > min_dist_to_wp + 0.8):
+            # Reaches within 2.2m or passes within 3.0m
+            if dist <= ARRIVAL_RADIUS or (min_dist_to_wp <= 3.0 and dist > min_dist_to_wp + 0.6):
                 print("\n" + "=" * 55)
                 print(">>> WAYPOINT {} REACHED (dist={:.1f}m, closest={:.1f}m)!".format(
                     wp_index + 1, dist, min_dist_to_wp))
