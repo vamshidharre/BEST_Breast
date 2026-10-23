@@ -2,9 +2,9 @@
 **Team:** NavySeals · **Vessel:** DD-Boat 11 (`172.20.25.211`)  
 *Guerlédan Lake, Brittany | ENSTA Bretagne · Lab-STICC · ROBEX*  
 **Supervisors:** Prof. Luc Jaulin, Prof. Benoît Zerr, Antoine Morvan  
-**Team:** Natlach · Jakub Grygierczyk · Samuel Mastroscianni · Vamshidhar Reddy Enugala
+**Team:** Natalia Lach · Jakub Grygierczyk · Samuel Mastroscianni · Vamshidhar Reddy Enugala
 
-| 📽️ [Slides](https://vamshidharre.github.io/BEST_Breast/navyseals_presentation.html) | 📄 [Report (PDF, 4 pages)](report/NavySeals_BEST2026_Report.pdf) | 🌐 [Project page](https://vamshidharre.github.io/BEST_Breast/) |
+| 📽️ [Slides](https://vamshidharre.github.io/BEST_Brest/navyseals_presentation.html) | 📄 [Report (PDF, 4 pages)](report/NavySeals_BEST2026_Report.pdf) | 🌐 [Project page](https://vamshidharre.github.io/BEST_Brest/) |
 | :---: | :---: | :---: |
 
 Figures are rebuilt from the logs with `python make_slide_images.py`; the report PDF with `python report/build_report.py`.
@@ -41,7 +41,7 @@ This repository contains:
 ## 📁 Repository Structure
 
 ```text
-BEST_Breast/
+BEST_Brest/
 ├── SESSION_HANDOVER.md             # ⭐ Quick-resume guide for new sessions
 ├── PROJECT_RECORD.md               # ⭐ Full technical runbook & command cheat sheet
 ├── DIGITAL_TWIN.md                 # ⭐ Digital twin, UDP & Luenberger observer manual
