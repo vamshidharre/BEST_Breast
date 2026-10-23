@@ -91,7 +91,7 @@ def get_calibrated_heading(imu, invA, xbar):
     raw = np.array(imu.read_mag_raw()).reshape((3, 1))
     calib = invA @ (raw - xbar)
     mx, my, _ = calib.flatten()
-    heading_rad = math.atan2(my, mx)
+    heading_rad = math.atan2(-my, mx)
     heading_deg = (math.degrees(heading_rad) + 360.0) % 360.0
     return heading_rad, heading_deg
 
@@ -326,10 +326,10 @@ def main():
     wp_idx = start_idx
     prev_x, prev_y = cur_x, cur_y
     min_dist = 999.0
-    ARRIVAL_RADIUS = 2.5
-    CRUISE_SPEED = 75
-    PIVOT_SPEED = 80
-    Kp = 30.0
+    ARRIVAL_RADIUS = 3.5
+    CRUISE_SPEED = 85
+    PIVOT_SPEED = 85
+    Kp = 35.0
     RACE_DURATION = 300.0 # 5 minutes
 
     pivot_latch_dir = 0

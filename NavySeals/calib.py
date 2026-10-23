@@ -44,7 +44,7 @@ def compute_heading_from_calib(xraw, invA, xbar):
     mx, my, _ = y.flatten()
 
     # Marine Compass convention (East is +90°, West is +270°):
-    heading_rad = math.atan2(my, mx)
+    heading_rad = math.atan2(-my, mx)
     heading_deg = (math.degrees(heading_rad) + 360.0) % 360.0
     return heading_deg, (mx, my)
 
@@ -193,24 +193,24 @@ def main():
 
     if os.path.exists("calib_boat11.json"):
         print("\nFound existing calibration file 'calib_boat11.json'!")
-        print("  [T] Test existing calibration (Live compass check)")
-        print("  [1] Recalibrate: 360° Flat Circle (Fast, recommended)")
-        print("  [2] Recalibrate: 4-Pose Jaulin Method")
+        print("  [T / 3] Test existing calibration (Live compass check - NO recalibration)")
+        print("  [1]     Recalibrate: 360° Flat Circle (Fast, recommended)")
+        print("  [2]     Recalibrate: 4-Pose Jaulin Method")
         try:
-            choice = input("\nEnter T, 1, or 2 [default=T]: ").strip().upper()
+            choice = input("\nEnter T/3 to Test, or 1/2 to Recalibrate [default=T]: ").strip().upper()
         except NameError:
-            choice = raw_input("\nEnter T, 1, or 2 [default=T]: ").strip().upper()
+            choice = raw_input("\nEnter T/3 to Test, or 1/2 to Recalibrate [default=T]: ").strip().upper()
         
         if choice == "1":
             invA, xbar = calibrate_horizontal_turn(imu)
         elif choice == "2":
             invA, xbar = calibrate_4poses(imu)
-        else:
+        else: # Covers "T", "3", "", or Enter
             with open("calib_boat11.json") as f:
                 d = json.load(f)
             xbar = np.array(d["xbar"])
             invA = np.array(d["invA"])
-            print("Loaded existing calibration parameters.")
+            print("Loaded existing calibration parameters. Starting live compass stream...")
     else:
         print("\nSelect calibration method:")
         print("  [1] Turn Boat in a 360° Flat Circle (Fast, robust, recommended)")

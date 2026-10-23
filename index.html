@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Team NavySeals · BEST 2026</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root { --ink: #0b1f3a; --ink-2: #2b3c55; --muted: #5b6b82; --line: #dbe4ef; --teal: #0e7490; --teal-soft: #e3f4f8; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; font-family: 'Inter', 'Segoe UI', sans-serif; color: var(--ink);
+         background: linear-gradient(115deg, #ffffff 0%, #f1f8fb 55%, #e3f2f8 100%); display: flex; align-items: center; justify-content: center; padding: 32px 16px; }
+  main { width: 100%; max-width: 880px; }
+  .kicker { font: 700 14px 'Plus Jakarta Sans', sans-serif; letter-spacing: .14em; text-transform: uppercase; color: var(--teal); }
+  h1 { font: 800 clamp(40px, 7vw, 68px)/1.02 'Plus Jakarta Sans', sans-serif; letter-spacing: -.02em; margin: 14px 0 12px; }
+  h1 span { color: var(--teal); }
+  p.lead { font-size: 19px; line-height: 1.5; color: var(--ink-2); margin: 0 0 28px; max-width: 640px; }
+  .photo { width: 100%; aspect-ratio: 2.4 / 1; object-fit: cover; border-radius: 22px; box-shadow: 0 18px 44px rgba(11, 31, 58, .18); margin-bottom: 28px; display: block; }
+  .links { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
+  a.card { display: block; text-decoration: none; color: inherit; background: #fff; border: 1.5px solid var(--line); border-radius: 18px; padding: 22px 24px; transition: transform .15s, border-color .15s; }
+  a.card:hover { transform: translateY(-2px); border-color: var(--teal); }
+  a.card b { display: block; font: 800 21px 'Plus Jakarta Sans', sans-serif; margin-bottom: 6px; }
+  a.card span { font-size: 15px; color: var(--muted); }
+  footer { margin-top: 28px; font-size: 14px; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <div class="kicker">BEST 2026 · ENSTA Bretagne · Guerlédan Lake</div>
+  <h1>Team <span>NavySeals</span></h1>
+  <p class="lead">Autonomous navigation of a DD-Boat: compass calibration, GPS guidance, a digital twin and real runs on Guerlédan Lake.</p>
+  <img class="photo" src="boat.jpg" alt="DD-Boat 11 on the Guerlédan dock" onerror="this.remove()">
+  <div class="links">
+    <a class="card" href="navyseals_presentation.html"><b>Slides →</b><span>Presentation (arrow keys to navigate, F for fullscreen)</span></a>
+    <a class="card" href="report/NavySeals_BEST2026_Report.pdf"><b>Report (PDF) →</b><span>4-page project report</span></a>
+    <a class="card" href="https://github.com/vamshidharre/BEST_Breast"><b>Code on GitHub →</b><span>Boat scripts, logs, KML tracks</span></a>
+  </div>
+  <footer>Vamshidhar Reddy Enugala · Samuel Mastroscianni · Jakub Grygierczyk · Natlach — supervised by Prof. Luc Jaulin, Prof. Benoît Zerr and Antoine Morvan</footer>
+</main>
+</body>
+</html>

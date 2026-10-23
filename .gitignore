@@ -21,3 +21,6 @@ ENV/
 Thumbs.db
 Desktop.ini
 .DS_Store
+
+# Satellite tile cache for make_slide_images.py
+slides_assets/.tile_cache/

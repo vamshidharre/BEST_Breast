@@ -46,25 +46,30 @@ def sawtooth(a):
     return math.atan2(math.sin(a), math.cos(a))
 
 def save_kml_track(track_points, filename="mission_track.kml"):
-    """Saves accumulated (lat, lon) coordinates to KML file."""
+    """Saves accumulated (lat, lon) coordinates to KML file with target Buoy pins."""
     if not track_points:
         return
+    coord_str = ' '.join('{:.7f},{:.7f},0.0'.format(lon, lat) for lat, lon in track_points)
     kml = [
         '<?xml version="1.0" encoding="UTF-8"?>',
         '<kml xmlns="http://www.opengis.net/kml/2.2">',
         '<Document>',
-        '  <name>DD-Boat 11 Mission Track</name>',
-        '  <Style id="trackLine">',
-        '    <LineStyle><color>ff00ffff</color><width>4</width></LineStyle>',
-        '  </Style>',
+        '  <name>DD-Boat 11 Sprint Mission Track</name>',
+        '  <Style id="trackLine"><LineStyle><color>ff00ffff</color><width>4</width></LineStyle></Style>',
+        '  <Placemark>',
+        '    <name>Point A (Shore Buoy)</name>',
+        '    <Point><coordinates>-3.0150700,48.1988630,0.0</coordinates></Point>',
+        '  </Placemark>',
+        '  <Placemark>',
+        '    <name>Point B (Lake Buoy)</name>',
+        '    <Point><coordinates>-3.0171140,48.1982590,0.0</coordinates></Point>',
+        '  </Placemark>',
         '  <Placemark>',
         '    <name>Boat 11 Trajectory ({} points)</name>'.format(len(track_points)),
         '    <styleUrl>#trackLine</styleUrl>',
         '    <LineString>',
         '      <tessellate>1</tessellate>',
-        '      <coordinates>',
-        ' ' + ' '.join('{:.7f},{:.7f},0.0'.format(lon, lat) for lat, lon in track_points),
-        '      </coordinates>',
+        '      <coordinates>{}</coordinates>'.format(coord_str),
         '    </LineString>',
         '  </Placemark>',
         '</Document>',
@@ -94,7 +99,7 @@ def get_heading(imu, invA, xbar):
     raw = np.array(imu.read_mag_raw()).reshape((3, 1))
     calib = invA @ (raw - xbar)
     mx, my, _ = calib.flatten()
-    return math.atan2(my, mx)
+    return math.atan2(-my, mx)
 
 def read_freshest_gps_fix(gps, max_drain=35):
     """
@@ -143,21 +148,39 @@ def main():
             print("[GPS LOCKED] Realtime Start Position: X={:.1f}m, Y={:.1f}m".format(cur_x, cur_y))
         time.sleep(0.15)
 
-    BOX_SIZE = 15.0
+    # Real Coordinates provided by Professor (Guerlédan Lake)
+    lat_A, lon_A = 48.198863, -3.015070
+    lat_B, lon_B = 48.198259, -3.017114
+    xA, yA = latlon_to_meters(lat_A, lon_A)
+    xB, yB = latlon_to_meters(lat_B, lon_B)
+
+    # EXACT MISSION: Dock -> Point A -> Point B -> Return to Point A -> STOP
     waypoints_metric = [
-        (cur_x + BOX_SIZE, cur_y + 0.0),       # WP1: 15m East
-        (cur_x + BOX_SIZE, cur_y + BOX_SIZE),  # WP2: 15m North-East
-        (cur_x + 0.0,      cur_y + BOX_SIZE),  # WP3: 15m North
-        (cur_x + 0.0,      cur_y + 0.0),       # WP4: Home
+        (xA, yA, "Point A (Shore Start)"),
+        (xB, yB, "Point B (Lake Turnaround)"),
+        (xA, yA, "Point A (Final Finish & Stop)"),
     ]
+
+    print("\n" + "=" * 65)
+    print("   DD-BOAT 11 : FASTEST SPRINT MISSION (DOCK -> A -> B -> A)")
+    print("=" * 65)
+    print("  Launch Start:   X={:+.1f}m, Y={:+.1f}m".format(cur_x, cur_y))
+    print("  Leg 1: Launch -> Point A (Shore):  {:.1f}m".format(math.hypot(xA - cur_x, yA - cur_y)))
+    dist_AB = math.hypot(xB - xA, yB - yA)
+    bearing_AB = (math.degrees(math.atan2(xB - xA, yB - yA)) + 360) % 360
+    bearing_BA = (bearing_AB + 180) % 360
+    print("  Leg 2: Point A -> Point B (Lake):   {:.1f}m (Heading {:.1f}°)".format(dist_AB, bearing_AB))
+    print("  Leg 3: Point B -> Point A (Finish): {:.1f}m (Heading {:.1f}°)".format(dist_AB, bearing_BA))
+    print("  Target Speed: SPRINT (PWM=100) | Gain: Kp=35.0 (High Wind)")
+    print("=" * 65 + "\n")
 
     wp_index = 0
     prev_wp_x, prev_wp_y = cur_x, cur_y
     min_dist_to_wp = 999.0
-    ARRIVAL_RADIUS = 2.5
-    CRUISE_SPEED = 70
-    PIVOT_SPEED = 75
-    Kp = 28.0
+    ARRIVAL_RADIUS = 3.5
+    CRUISE_SPEED = 100  # High-speed sprint
+    PIVOT_SPEED = 95    # Fast aggressive pivot turnaround
+    Kp = 35.0           # Stiff heading restoration gain
 
     pivot_latch_dir = 0 # -1 for CCW, +1 for CW, 0 for inactive
     last_valid_gps_time = time.time()
@@ -186,6 +209,7 @@ def main():
 
     print("\nMission armed (15m box). Zero lag + GPS watchdog + KML autosave enabled.\n")
 
+    t_mission_start = time.time()
     try:
         while wp_index < len(waypoints_metric):
             now = time.time()
@@ -210,7 +234,7 @@ def main():
                 time.sleep(0.1)
                 continue
 
-            tx, ty = waypoints_metric[wp_index]
+            tx, ty, wp_label = waypoints_metric[wp_index]
             dist = math.hypot(tx - cur_x, ty - cur_y)
 
             # 2. Prof. Luc Jaulin's perpendicular finish-line crossing condition:
@@ -221,20 +245,20 @@ def main():
 
             # Waypoint Arrival Check
             if dist <= ARRIVAL_RADIUS or (min_dist_to_wp <= 3.5 and passed_line):
-                print("\n" + "=" * 55)
-                print(">>> WAYPOINT {} VALIDATED (dist={:.1f}m, passed={})!".format(
-                    wp_index + 1, dist, passed_line))
+                t_lap = time.time() - t_mission_start
+                print("\n" + "=" * 60)
+                print(">>> [{:5.1f}s] {} VALIDATED (dist={:.1f}m, passed={})!".format(
+                    t_lap, wp_label, dist, passed_line))
                 prev_wp_x, prev_wp_y = tx, ty
                 wp_index += 1
                 min_dist_to_wp = 999.0
                 pivot_latch_dir = 0
                 if wp_index >= len(waypoints_metric):
                     break
-                print(">>> Advancing to Waypoint {}/{}...".format(wp_index + 1, len(waypoints_metric)))
-                print("=" * 55 + "\n")
-                tx, ty = waypoints_metric[wp_index]
-                ard.send_arduino_cmd_motor(0, 0)
-                time.sleep(0.3)
+                print(">>> Full Power Sprint to: {} ({}/{})".format(
+                    waypoints_metric[wp_index][2], wp_index + 1, len(waypoints_metric)))
+                print("=" * 60 + "\n")
+                tx, ty, wp_label = waypoints_metric[wp_index]
                 continue
 
             if dist < min_dist_to_wp:
@@ -257,15 +281,16 @@ def main():
                 u1 = int(+pivot_latch_dir * PIVOT_SPEED)
                 u2 = int(-pivot_latch_dir * PIVOT_SPEED)
             else:
-                mode = "CRUISE"
-                u1 = int(np.clip(CRUISE_SPEED + Kp * e_theta, 0, 110))
-                u2 = int(np.clip(CRUISE_SPEED - Kp * e_theta, 0, 110))
+                mode = "SPRINT"
+                u1 = int(np.clip(CRUISE_SPEED + Kp * e_theta, 0, 115))
+                u2 = int(np.clip(CRUISE_SPEED - Kp * e_theta, 0, 115))
 
             ard.send_arduino_cmd_motor(u1, u2)
 
             h_deg = (math.degrees(theta) + 360) % 360
-            print("[{:6s}] WP {}/{} | Dist: {:4.1f}m | Hdg: {:5.1f}° | Err: {:+5.1f}° | M: ({:+4d}, {:+4d})".format(
-                mode, wp_index + 1, len(waypoints_metric), dist, h_deg, e_deg, u1, u2))
+            elapsed = time.time() - t_mission_start
+            print("[{:5.1f}s | {:6s}] {} | Dist: {:4.1f}m | Hdg: {:5.1f}° | Err: {:+5.1f}° | M: ({:+4d}, {:+4d})".format(
+                elapsed, mode, wp_label, dist, h_deg, e_deg, u1, u2))
 
             with open(log_file, "a") as f:
                 f.write("{:.2f},{:.2f},{:.2f},{:.2f},{:.2f},{},{:.1f},{:.1f},{},{}\n".format(
@@ -273,7 +298,12 @@ def main():
 
             time.sleep(0.08)
 
-        print("\n\nMISSION COMPLETE! Returned to launch home.")
+        total_time = time.time() - t_mission_start
+        print("\n\n" + "=" * 65)
+        print(">>> MISSION ACCOMPLISHED! SPRINT RECORD TIME: {:.1f} SECONDS <<<".format(total_time))
+        print("    Course: Dock -> Point A -> Point B (165.7m) -> Point A")
+        print("    Motors disarmed to (0, 0). Final KML track saved.")
+        print("=" * 65)
 
     except KeyboardInterrupt:
         print("\n\nCtrl+C detected - stopping motors.")

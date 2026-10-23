@@ -2,6 +2,12 @@
 **Team:** NavySeals · **Vessel:** DD-Boat 11 (`172.20.25.211`)  
 *Guerlédan Lake, Brittany | ENSTA Bretagne · Lab-STICC · ROBEX*  
 **Supervisors:** Prof. Luc Jaulin, Prof. Benoît Zerr, Antoine Morvan  
+**Team:** Vamshidhar Reddy Enugala · Samuel Mastroscianni · Jakub Grygierczyk · Natlach
+
+| 📽️ [Slides](https://vamshidharre.github.io/BEST_Breast/navyseals_presentation.html) | 📄 [Report (PDF, 4 pages)](report/NavySeals_BEST2026_Report.pdf) | 🌐 [Project page](https://vamshidharre.github.io/BEST_Breast/) |
+| :---: | :---: | :---: |
+
+Figures are rebuilt from the logs with `python make_slide_images.py`; the report PDF with `python report/build_report.py`.
 
 > 🚀 **STARTING A NEW CHAT SESSION?**  
 > Read [`SESSION_HANDOVER.md`](file:///d:/Personal_Projects/BEST_Breast/SESSION_HANDOVER.md) first! It contains the complete status, technical constraints (Python 3.5.3, no scipy, steering laws), verified milestones, and immediate commands to resume without repeating work.

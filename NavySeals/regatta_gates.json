@@ -1,0 +1,17 @@
+{
+    "_comment": "EXAMPLE ONLY - Exercise 13 pool layout placed at the course reference point. Copy to regatta_gates.json and replace with the real gate endpoints (decimal degrees, [lat, lon]). Gates are raced in list order, then the loop repeats. plus_heading_deg = compass direction (0=N, 90=E) of a crossing that scores +1.",
+    "gates": [
+        {
+            "name": "GREEN",
+            "p1": [48.1991110, -3.0148490],
+            "p2": [48.1991560, -3.0148490],
+            "plus_heading_deg": 90.0
+        },
+        {
+            "name": "RED",
+            "p1": [48.1992459, -3.0148490],
+            "p2": [48.1992909, -3.0148490],
+            "plus_heading_deg": 270.0
+        }
+    ]
+}

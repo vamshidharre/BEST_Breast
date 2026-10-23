@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Team NavySeals · BEST 2026</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  /*
+    HOW TO USE
+    - Open this file in a browser. Arrow keys / Space / PageDown to move, F = fullscreen, Home/End.
+    - Boat photos: save them next to this file as boat1.jpg, boat2.jpg, boat3.jpg
+      (.jpeg / .png / .webp also work). Missing photos fall back to boat1, then to a placeholder.
+    - Result images live in slides_assets/ and are rebuilt with:  python make_slide_images.py
+    - Print to PDF (Ctrl+P, landscape, no margins) gives one slide per page.
+  */
+  :root {
+    --page: #e6edf5;
+    --paper: #ffffff;
+    --paper-2: #f5f8fc;
+    --ink: #0b1f3a;
+    --ink-2: #2b3c55;
+    --muted: #5b6b82;
+    --line: #dbe4ef;
+    --teal: #0e7490;
+    --teal-2: #0891b2;
+    --teal-soft: #e3f4f8;
+    --orange: #ea580c;
+    --orange-soft: #fff0e5;
+    --green: #15803d;
+    --green-soft: #e6f6ec;
+    --red: #dc2626;
+    --red-soft: #fdecec;
+    --violet: #7c3aed;
+    --gold: #ca8a04;
+    --head: 'Plus Jakarta Sans', 'Segoe UI', system-ui, sans-serif;
+    --body: 'Inter', 'Segoe UI', system-ui, sans-serif;
+    --mono: 'JetBrains Mono', Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--page);
+    color: var(--ink);
+    font-family: var(--body);
+    overflow: hidden;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---------- 1920x1080 stage, scaled to the window ---------- */
+  .stage {
+    position: absolute; left: 50%; top: 50%;
+    width: 1920px; height: 1080px;
+    transform-origin: center center;
+    background: var(--paper);
+    box-shadow: 0 20px 60px rgba(11, 31, 58, .12);
+    overflow: hidden;
+  }
+  .slide {
+    position: absolute; inset: 0;
+    padding: 84px 110px 96px;
+    display: flex; flex-direction: column;
+    opacity: 0; visibility: hidden;
+    transition: opacity .35s ease, transform .35s ease;
+    transform: translateY(10px);
+    background: var(--paper);
+  }
+  .slide.active { opacity: 1; visibility: visible; transform: none; }
+  .no-anim .slide { transition: none !important; }
+
+  /* ---------- type ---------- */
+  .kicker {
+    font-family: var(--head); font-weight: 700;
+    font-size: 24px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--teal);
+    display: flex; align-items: center; gap: 16px;
+  }
+  .kicker::before { content: ""; width: 44px; height: 4px; border-radius: 2px; background: var(--teal); }
+  h1, h2, h3 { font-family: var(--head); margin: 0; color: var(--ink); }
+  h2 { font-size: 62px; font-weight: 800; line-height: 1.08; letter-spacing: -.015em; margin-top: 14px; }
+  h3 { font-size: 34px; font-weight: 700; line-height: 1.2; }
+  p { margin: 0; }
+  .lead { font-size: 32px; line-height: 1.45; color: var(--ink-2); }
+  .body { font-size: 28px; line-height: 1.5; color: var(--ink-2); }
+  .small { font-size: 23px; line-height: 1.45; color: var(--muted); }
+  .mono { font-family: var(--mono); }
+  b, strong { color: var(--ink); font-weight: 700; }
+
+  .s-head { margin-bottom: 44px; }
+  .s-body { flex: 1; min-height: 0; }
+  .s-foot {
+    position: absolute; left: 110px; right: 110px; bottom: 34px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 20px; color: var(--muted); font-weight: 500;
+  }
+  .s-foot .pg { font-family: var(--head); font-weight: 700; color: var(--teal); }
+
+  /* ---------- building blocks ---------- */
+  .card {
+    background: var(--paper-2); border: 1.5px solid var(--line);
+    border-radius: 24px; padding: 36px 38px;
+  }
+  .pill {
+    display: inline-flex; align-items: center; gap: 10px;
+    font-family: var(--head); font-weight: 700; font-size: 21px;
+    padding: 9px 18px; border-radius: 999px;
+  }
+  .pill.ok { background: var(--green-soft); color: var(--green); }
+  .pill.part { background: var(--orange-soft); color: var(--orange); }
+  .pill.sim { background: var(--teal-soft); color: var(--teal); }
+  .dot { width: 12px; height: 12px; border-radius: 50%; background: currentColor; }
+
+  .stat .num { font-family: var(--head); font-weight: 800; font-size: 64px; line-height: 1; letter-spacing: -.02em; }
+  .stat .unit { font-size: 30px; font-weight: 700; margin-left: 4px; }
+  .stat .lbl { font-size: 23px; color: var(--muted); margin-top: 10px; line-height: 1.35; }
+
+  .eq {
+    font-family: var(--mono); font-weight: 500; font-size: 29px; color: var(--ink);
+    background: var(--paper); border: 1.5px solid var(--line); border-radius: 16px;
+    padding: 18px 24px; line-height: 1.5;
+  }
+  .eq .v { color: var(--teal); font-weight: 600; }
+
+  figure { margin: 0; }
+  .shot {
+    border-radius: 22px; overflow: hidden; background: #0b1f3a;
+    box-shadow: 0 12px 34px rgba(11, 31, 58, .16);
+  }
+  .shot img { display: block; width: 100%; height: 100%; object-fit: cover; }
+  figcaption { font-size: 22px; color: var(--muted); margin-top: 14px; line-height: 1.4; }
+
+  /* ---------- boat photo slots ---------- */
+  .photo {
+    position: relative; overflow: hidden; border-radius: 28px;
+    background: linear-gradient(160deg, #e3f4f8 0%, #c6e6ef 60%, #a9d6e5 100%);
+  }
+  .photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+  .photo .ph {
+    position: absolute; inset: 0; display: none;
+    flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+    color: var(--teal); text-align: center; padding: 40px;
+  }
+  .photo .ph svg { width: 220px; height: auto; opacity: .85; }
+  .photo .ph b { font-family: var(--head); font-size: 30px; color: var(--teal); }
+  .photo .ph span { font-size: 22px; color: var(--ink-2); }
+  .photo.missing img { display: none; }
+  .photo.missing .ph { display: flex; }
+  .photo.quiet .ph { display: none !important; }
+
+  /* ---------- title slide ---------- */
+  .title-slide { padding: 0; flex-direction: row; background: linear-gradient(115deg, #ffffff 0%, #f1f8fb 55%, #e3f2f8 100%); }
+  .title-slide .left { width: 52%; padding: 120px 40px 120px 120px; display: flex; flex-direction: column; justify-content: center; position: relative; z-index: 2; }
+  .title-slide h1 { font-size: 132px; font-weight: 800; line-height: .98; letter-spacing: -.03em; margin: 26px 0 30px; }
+  .title-slide h1 span { color: var(--teal); }
+  .title-slide .lead { font-size: 36px; max-width: 860px; }
+  .title-slide .people { margin-top: 56px; display: flex; gap: 56px; }
+  .title-slide .people .lbl { font-size: 20px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+  .title-slide .people .val { font-size: 27px; font-weight: 600; color: var(--ink); margin-top: 8px; line-height: 1.4; }
+  .title-slide .right { width: 48%; padding: 70px 90px 70px 0; position: relative; z-index: 2; display: flex; flex-direction: column; justify-content: center; gap: 34px; }
+  .title-slide .right .photo { width: 100%; border-radius: 32px; box-shadow: 0 24px 60px rgba(11, 31, 58, .22); }
+  .hero-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .hero-stats > div { background: rgba(255, 255, 255, .85); border: 1.5px solid var(--line); border-radius: 20px; padding: 22px 24px; }
+  .hero-stats b { display: block; font-family: var(--head); font-weight: 800; font-size: 46px; color: var(--teal); line-height: 1; }
+  .hero-stats span { display: block; font-size: 21px; color: var(--ink-2); margin-top: 10px; line-height: 1.3; }
+  .wave { position: absolute; left: 0; right: 0; bottom: 0; height: 220px; z-index: 1; }
+
+  /* ---------- section helpers ---------- */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 56px; height: 100%; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 36px; }
+  .rows { display: flex; flex-direction: column; gap: 22px; }
+  .row { display: flex; gap: 26px; align-items: flex-start; }
+  .icon {
+    flex: none; width: 72px; height: 72px; border-radius: 20px;
+    display: grid; place-items: center; background: var(--teal-soft); color: var(--teal);
+  }
+  .icon svg { width: 40px; height: 40px; }
+  .row h3 { font-size: 30px; }
+  .row p { font-size: 24px; line-height: 1.45; color: var(--ink-2); margin-top: 6px; }
+
+  .mission { display: flex; flex-direction: column; gap: 20px; padding: 40px; }
+  .mission .mini { height: 190px; border-radius: 18px; background: var(--paper); border: 1.5px solid var(--line); display: grid; place-items: center; }
+  .mission .mini svg { height: 160px; width: auto; }
+  .mission .num { font-family: var(--head); font-weight: 800; font-size: 26px; color: var(--teal); letter-spacing: .08em; }
+  .facts { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+  .facts li { font-size: 23px; color: var(--ink); font-weight: 500; padding-left: 30px; position: relative; }
+  .facts li::before { content: ""; position: absolute; left: 4px; top: 12px; width: 12px; height: 12px; border-radius: 3px; background: var(--teal); opacity: .55; }
+
+  .steps { counter-reset: s; display: flex; flex-direction: column; gap: 20px; }
+  .step { display: grid; grid-template-columns: 56px 1fr; gap: 22px; align-items: start; }
+  .step::before {
+    counter-increment: s; content: counter(s);
+    width: 56px; height: 56px; border-radius: 50%;
+    background: var(--teal); color: #fff; font-family: var(--head); font-weight: 800; font-size: 28px;
+    display: grid; place-items: center;
+  }
+  .step .t { font-size: 27px; font-weight: 600; color: var(--ink); line-height: 1.3; padding-top: 10px; }
+  .step .eq { margin-top: 12px; font-size: 26px; padding: 12px 20px; }
+
+  table.coords { width: 100%; border-collapse: collapse; font-size: 25px; }
+  table.coords th { text-align: left; font-size: 19px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); font-weight: 600; padding: 0 0 14px; }
+  table.coords td { padding: 18px 0; border-top: 1.5px solid var(--line); color: var(--ink-2); }
+  table.coords td:first-child { font-weight: 700; color: var(--ink); }
+  table.coords .mono { font-size: 23px; }
+
+  .insight { display: grid; grid-template-columns: 10px 1fr; gap: 24px; padding: 28px 30px; border-radius: 22px; background: var(--paper-2); border: 1.5px solid var(--line); }
+  .insight .bar { border-radius: 6px; }
+  .insight h3 { font-size: 28px; }
+  .insight p { font-size: 23px; line-height: 1.45; color: var(--ink-2); margin-top: 8px; }
+
+  .tile { padding: 34px; border-radius: 24px; background: var(--paper-2); border: 1.5px solid var(--line); display: flex; flex-direction: column; gap: 14px; }
+  .tile .icon { width: 64px; height: 64px; border-radius: 18px; }
+  .tile h3 { font-size: 29px; }
+  .tile p { font-size: 23px; line-height: 1.45; color: var(--ink-2); }
+
+  /* ---------- controls ---------- */
+  .progress { position: absolute; left: 0; bottom: 0; height: 8px; background: var(--teal); transition: width .35s ease; z-index: 5; }
+  .controls {
+    position: fixed; right: 18px; bottom: 16px; display: flex; gap: 8px; align-items: center;
+    opacity: 0; transition: opacity .25s; z-index: 50;
+    font-family: var(--head);
+  }
+  body.show-ui .controls, .controls:hover { opacity: 1; }
+  .controls button {
+    border: 0; background: rgba(255, 255, 255, .95); color: var(--ink);
+    font: 600 15px var(--head); padding: 10px 14px; border-radius: 10px; cursor: pointer;
+    box-shadow: 0 4px 14px rgba(11, 31, 58, .15);
+  }
+  .controls button:hover { background: var(--teal); color: #fff; }
+  .controls .count { background: rgba(255, 255, 255, .95); padding: 10px 14px; border-radius: 10px; font-weight: 700; font-size: 15px; box-shadow: 0 4px 14px rgba(11, 31, 58, .15); }
+
+  /* ---------- print: one slide per page ---------- */
+  @media print {
+    @page { size: 1920px 1080px; margin: 0; }
+    html, body { overflow: visible; height: auto; background: #fff; }
+    .stage { position: static; transform: none !important; box-shadow: none; width: 1920px; height: auto; overflow: visible; }
+    .slide { position: relative; opacity: 1; visibility: visible; transform: none; width: 1920px; height: 1080px; break-after: page; page-break-after: always; }
+    .controls, .progress { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<div class="stage" id="stage">
+
+  <!-- ============ 1 · TITLE ============ -->
+  <section class="slide title-slide">
+    <div class="left">
+      <div class="kicker">BEST 2026 · ENSTA Bretagne · Guerlédan Lake</div>
+      <h1>Team<br><span>NavySeals</span></h1>
+      <p class="lead">Teaching a DD-Boat to navigate on its own: compass, GPS, a digital twin, and real runs on the lake.</p>
+      <div class="people">
+        <div>
+          <div class="lbl">Supervisors</div>
+          <div class="val">Prof. Luc Jaulin<br>Prof. Benoît Zerr<br>Antoine Morvan</div>
+        </div>
+        <div>
+          <div class="lbl">Team</div>
+          <div class="val">Vamshidhar Reddy Enugala<br>Samuel Mastroscianni<br>Jakub Grygierczyk<br>Natlach</div>
+        </div>
+      </div>
+    </div>
+    <div class="right">
+      <figure class="photo missing" style="height:auto; aspect-ratio: 2.4 / 1">
+        <img data-photo="boat1,boat" alt="DD-Boat 11 on the Guerlédan dock">
+        <div class="ph"></div>
+      </figure>
+      <div class="hero-stats">
+        <div><b>4/4</b><span>box waypoints on the lake</span></div>
+        <div><b>3.7 m</b><span>from buoy B, 166 m out</span></div>
+        <div><b>3,476</b><span>telemetry samples</span></div>
+      </div>
+    </div>
+    <svg class="wave" viewBox="0 0 1920 220" preserveAspectRatio="none" aria-hidden="true">
+      <path d="M0,120 C320,60 560,180 960,120 C1360,60 1600,170 1920,110 L1920,220 L0,220 Z" fill="#cfeaf2" opacity=".55"/>
+      <path d="M0,165 C380,115 640,215 1000,165 C1360,120 1620,205 1920,160 L1920,220 L0,220 Z" fill="#a9d6e5" opacity=".45"/>
+    </svg>
+  </section>
+
+  <!-- ============ 2 · THE BOAT ============ -->
+  <section class="slide">
+    <header class="s-head">
+      <div class="kicker">01 · The vessel</div>
+      <h2>Meet the DD-Boat</h2>
+    </header>
+    <div class="s-body grid-2" style="grid-template-columns: 1.12fr 1fr; gap:60px">
+      <div style="display:flex; flex-direction:column; gap:26px; justify-content:center">
+        <figure class="photo missing" style="width:100%; aspect-ratio: 2.4 / 1; box-shadow: 0 16px 40px rgba(11,31,58,.16)">
+          <img data-photo="boat2,boat1,boat" alt="DD-Boat 11 on the dock">
+          <div class="ph"></div>
+        </figure>
+        <p class="small" style="margin-top:-10px">DD-Boat 11 on the Guerlédan dock, before a lake run.</p>
+        <div class="hero-stats" style="grid-template-columns: repeat(3, 1fr)">
+          <div><b>~1 Hz</b><span>GPS position fixes</span></div>
+          <div><b>~9 Hz</b><span>control loop and logging</span></div>
+          <div><b>Py 3.5</b><span>on board, NumPy only</span></div>
+        </div>
+      </div>
+      <div class="rows" style="justify-content:center">
+        <div class="row">
+          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4v16M17 4v16"/><path d="M4 8l3-4 3 4M14 8l3-4 3 4"/></svg></div>
+          <div><h3>Two thrusters, no rudder</h3><p>It steers by running the left and right motors at different speeds.</p></div>
+        </div>
+        <div class="row">
+          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="14" height="14" rx="2"/><path d="M9 1v4M15 1v4M9 19v4M15 19v4M1 9h4M1 15h4M19 9h4M19 15h4"/></svg></div>
+          <div><h3>Raspberry Pi 3 + Arduino Mega</h3><p>The Pi runs our Python code on board; the Arduino drives the motors.</p></div>
+        </div>
+        <div class="row">
+          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M15.5 8.5l-2 5-5 2 2-5z"/></svg></div>
+          <div><h3>9-axis IMU as a compass</h3><p>The LIS3MDL magnetometer gives the heading after calibration.</p></div>
+        </div>
+        <div class="row">
+          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg></div>
+          <div><h3>GPS receiver</h3><p>About one position fix per second, converted to metres on a local map.</p></div>
+        </div>
+        <div class="row">
+          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a15 15 0 0 1 20 0M5 12.5a10 10 0 0 1 14 0M8.5 16a5 5 0 0 1 7 0"/><circle cx="12" cy="19.5" r="1"/></svg></div>
+          <div><h3>Wi-Fi + SSH from a laptop</h3><p>We start missions remotely and pull the logs back over the lake Wi-Fi.</p></div>
+        </div>
+      </div>
+    </div>
+    <footer class="s-foot"><span>Team NavySeals · BEST 2026</span><span class="pg"></span></footer>
+  </section>
+
+  <!-- ============ 2b · THREE VIEWS ============ -->
+  <section class="slide">
+    <header class="s-head" style="margin-bottom:30px">
+      <div class="kicker">01 · The vessel</div>
+      <h2>DD-Boat 11 from three sides</h2>
+    </header>
+    <div class="s-body">
+      <svg viewBox="0 0 1700 720" style="width:100%; height:100%" font-family="Inter, sans-serif">
+        <defs>
+          <marker id="tip" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#5b6b82"/></marker>
+          <marker id="fwd" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#0e7490"/></marker>
+        </defs>
+
+        <!-- panel frames -->
+        <rect x="0" y="0" width="1100" height="345" rx="22" fill="#f5f8fc" stroke="#dbe4ef" stroke-width="2"/>
+        <rect x="0" y="370" width="1100" height="350" rx="22" fill="#f5f8fc" stroke="#dbe4ef" stroke-width="2"/>
+        <rect x="1130" y="0" width="570" height="720" rx="22" fill="#f5f8fc" stroke="#dbe4ef" stroke-width="2"/>
+        <g font-family="Plus Jakarta Sans, sans-serif" font-weight="800" font-size="22" fill="#0e7490" letter-spacing="2">
+          <text x="30" y="44">TOP VIEW</text><text x="30" y="414">SIDE VIEW</text><text x="1160" y="44">REAR VIEW</text>
+        </g>
+
+        <!-- ===== TOP VIEW (bow to the right) ===== -->
+        <g>
+          <!-- thrusters underneath (dashed) -->
+          <g fill="#0b1f3a" opacity=".85">
+            <rect x="118" y="112" width="96" height="26" rx="13"/><rect x="118" y="214" width="96" height="26" rx="13"/>
+            <rect x="104" y="104" width="12" height="42" rx="4"/><rect x="104" y="206" width="12" height="42" rx="4"/>
+          </g>
+          <path d="M150,82 L650,74 C810,82 905,122 958,176 C905,230 810,270 650,278 L150,270 Z" fill="#ffffff" stroke="#0b1f3a" stroke-width="4" stroke-linejoin="round"/>
+          <rect x="250" y="116" width="330" height="120" rx="48" fill="#eef3f8" stroke="#0b1f3a" stroke-width="3"/>
+          <path d="M310 176 H520" stroke="#0b1f3a" stroke-width="7" stroke-linecap="round" opacity=".55"/>
+          <text x="470" y="223" font-family="Plus Jakarta Sans, sans-serif" font-weight="800" font-size="20" fill="#0b1f3a" letter-spacing="1">ENSTA</text>
+          <text x="720" y="192" font-family="Plus Jakarta Sans, sans-serif" font-weight="800" font-size="46" fill="#0b1f3a">11</text>
+          <!-- labels -->
+          <path d="M210 112 L245 70" stroke="#5b6b82" stroke-width="2" marker-start="url(#tip)"/>
+          <text x="250" y="66" font-size="21" font-weight="600" fill="#2563eb">Left thruster · u<tspan font-size="15" dy="5">L</tspan></text>
+          <path d="M210 240 L245 300" stroke="#5b6b82" stroke-width="2" marker-start="url(#tip)"/>
+          <text x="250" y="318" font-size="21" font-weight="600" fill="#e11d48">Right thruster · u<tspan font-size="15" dy="5">R</tspan></text>
+          <path d="M560 226 L640 312" stroke="#5b6b82" stroke-width="2" marker-start="url(#tip)"/>
+          <text x="648" y="320" font-size="21" font-weight="600" fill="#0b1f3a">Hatch over the electronics</text>
+          <path d="M975 176 H1060" stroke="#0e7490" stroke-width="4" marker-end="url(#fwd)"/>
+          <text x="1000" y="160" font-size="20" font-weight="700" fill="#0e7490">bow</text>
+        </g>
+
+        <!-- ===== SIDE VIEW (bow to the right) ===== -->
+        <g>
+          <rect x="40" y="580" width="1020" height="118" rx="0" fill="#0e7490" opacity=".08"/>
+          <path d="M40 580 H1060" stroke="#0e7490" stroke-width="3" stroke-dasharray="14 10"/>
+          <text x="1056" y="568" text-anchor="end" font-size="19" font-weight="600" fill="#0e7490">waterline</text>
+          <!-- thruster pod under the stern -->
+          <path d="M215 610 V632" stroke="#0b1f3a" stroke-width="8"/>
+          <rect x="150" y="628" width="130" height="34" rx="17" fill="#0b1f3a"/>
+          <ellipse cx="140" cy="645" rx="7" ry="27" fill="#0b1f3a"/>
+          <!-- hull -->
+          <path d="M150,522 L650,516 C790,518 905,528 962,540 C905,568 790,604 650,620 L150,610 Z" fill="#ffffff" stroke="#0b1f3a" stroke-width="4" stroke-linejoin="round"/>
+          <path d="M250,519 C275,478 320,468 415,468 C510,468 552,478 580,518 Z" fill="#eef3f8" stroke="#0b1f3a" stroke-width="3" stroke-linejoin="round"/>
+          <path d="M330 470 C370 458 460 458 500 470" stroke="#0b1f3a" stroke-width="6" stroke-linecap="round" fill="none" opacity=".55"/>
+          <text x="420" y="506" text-anchor="middle" font-family="Plus Jakarta Sans, sans-serif" font-weight="800" font-size="18" fill="#0b1f3a" letter-spacing="1">ENSTA</text>
+          <!-- labels -->
+          <path d="M290 650 L360 682" stroke="#5b6b82" stroke-width="2" marker-start="url(#tip)"/>
+          <text x="366" y="690" font-size="21" font-weight="600" fill="#0b1f3a">Thruster pods sit below the stern</text>
+          <path d="M585 500 L660 452" stroke="#5b6b82" stroke-width="2" marker-start="url(#tip)"/>
+          <text x="666" y="448" font-size="21" font-weight="600" fill="#0b1f3a">Raised hatch keeps the electronics dry</text>
+        </g>
+
+        <!-- ===== REAR VIEW ===== -->
+        <g>
+          <rect x="1150" y="300" width="530" height="150" fill="#0e7490" opacity=".08"/>
+          <path d="M1150 300 H1680" stroke="#0e7490" stroke-width="3" stroke-dasharray="14 10"/>
+          <path d="M1345 205 C1355 168 1385 158 1415 158 C1445 158 1475 168 1485 205 Z" fill="#eef3f8" stroke="#0b1f3a" stroke-width="3" stroke-linejoin="round"/>
+          <path d="M1265,205 L1565,205 L1550,262 C1525,305 1470,330 1415,338 C1360,330 1305,305 1280,262 Z" fill="#ffffff" stroke="#0b1f3a" stroke-width="4" stroke-linejoin="round"/>
+          <!-- thrusters -->
+          <path d="M1340 318 V350 M1490 318 V350" stroke="#0b1f3a" stroke-width="8"/>
+          <circle cx="1340" cy="372" r="30" fill="#0b1f3a"/><circle cx="1490" cy="372" r="30" fill="#0b1f3a"/>
+          <path d="M1340 346 V398 M1314 372 H1366" stroke="#ffffff" stroke-width="5" stroke-linecap="round" opacity=".7"/>
+          <path d="M1490 346 V398 M1464 372 H1516" stroke="#ffffff" stroke-width="5" stroke-linecap="round" opacity=".7"/>
+          <text x="1340" y="436" text-anchor="middle" font-size="22" font-weight="700" fill="#2563eb">u<tspan font-size="16" dy="5">L</tspan></text>
+          <text x="1490" y="436" text-anchor="middle" font-size="22" font-weight="700" fill="#e11d48">u<tspan font-size="16" dy="5">R</tspan></text>
+          <!-- how the two motors steer -->
+          <g font-size="21" fill="#0b1f3a">
+            <text x="1160" y="508" font-family="Plus Jakarta Sans, sans-serif" font-weight="800" font-size="22" fill="#0e7490" letter-spacing="2">STEERING</text>
+            <text x="1160" y="552"><tspan font-weight="700">u<tspan font-size="15" dy="5">L</tspan><tspan dy="-5"> = u</tspan><tspan font-size="15" dy="5">R</tspan></tspan><tspan dy="-5" fill="#5b6b82">  →  straight ahead</tspan></text>
+            <text x="1160" y="598"><tspan font-weight="700">u<tspan font-size="15" dy="5">L</tspan><tspan dy="-5"> &gt; u</tspan><tspan font-size="15" dy="5">R</tspan></tspan><tspan dy="-5" fill="#5b6b82">  →  turns right</tspan></text>
+            <text x="1160" y="644"><tspan font-weight="700">u<tspan font-size="15" dy="5">L</tspan><tspan dy="-5"> = −u</tspan><tspan font-size="15" dy="5">R</tspan></tspan><tspan dy="-5" fill="#5b6b82">  →  spins in place</tspan></text>
+          </g>
+        </g>
+      </svg>
+    </div>
+    <footer class="s-foot"><span>Illustrations drawn from our photo of DD-Boat 11 · not to scale</span><span class="pg"></span></footer>
+  </section>
+
+  <!-- ============ 3 · MISSIONS ============ -->
+  <section class="slide">
+    <header class="s-head">
+      <div class="kicker">02 · The plan</div>
+      <h2>Three missions, from simple to hard</h2>
+    </header>
+    <div class="s-body grid-3">
+      <div class="card mission">
+        <div class="mini">
+          <svg viewBox="0 0 220 160" fill="none">
+            <rect x="50" y="25" width="120" height="110" rx="6" stroke="#0e7490" stroke-width="5" stroke-dasharray="2 0"/>
+            <g fill="#dc2626" stroke="#fff" stroke-width="3"><circle cx="170" cy="135" r="11"/><circle cx="170" cy="25" r="11"/><circle cx="50" cy="25" r="11"/></g>
+            <rect x="39" y="124" width="22" height="22" rx="4" fill="#7c3aed" stroke="#fff" stroke-width="3"/>
+          </svg>
+        </div>
+        <div class="num">MISSION 1</div>
+        <h3>15 m box</h3>
+        <p class="body" style="font-size:25px">Visit 4 GPS waypoints around a square and come back home.</p>
+        <ul class="facts"><li>15 m sides, 4 waypoints</li><li>2.5 m arrival circle</li><li>Cruise PWM 70</li></ul>
+        <div style="margin-top:auto"><span class="pill ok"><span class="dot"></span>Done on the lake</span></div>
+      </div>
+      <div class="card mission">
+        <div class="mini">
+          <svg viewBox="0 0 220 160" fill="none">
+            <path d="M40 125 L180 40" stroke="#0e7490" stroke-width="5"/>
+            <path d="M120 70 l18 -6 -8 17" stroke="#0e7490" stroke-width="5" stroke-linejoin="round"/>
+            <circle cx="180" cy="40" r="14" fill="#15803d" stroke="#fff" stroke-width="3"/>
+            <circle cx="40" cy="125" r="14" fill="#dc2626" stroke="#fff" stroke-width="3"/>
+            <text x="180" y="47" text-anchor="middle" font-family="Plus Jakarta Sans, sans-serif" font-weight="800" font-size="18" fill="#fff">A</text>
+            <text x="40" y="132" text-anchor="middle" font-family="Plus Jakarta Sans, sans-serif" font-weight="800" font-size="18" fill="#fff">B</text>
+          </svg>
+        </div>
+        <div class="num">MISSION 2</div>
+        <h3>Sprint A → B → A</h3>
+        <p class="body" style="font-size:25px">Full speed between two buoys, 165.7 m apart, and back.</p>
+        <ul class="facts"><li>Dock → A → B → A</li><li>Bearing 246.1° out, 66.1° back</li><li>Cruise PWM 100, Kp 35</li></ul>
+        <div style="margin-top:auto"><span class="pill part"><span class="dot"></span>Reached B · Wi-Fi lost on return</span></div>
+      </div>
+      <div class="card mission">
+        <div class="mini">
+          <svg viewBox="0 0 220 160" fill="none">
+            <rect x="45" y="30" width="130" height="100" rx="40" stroke="#0e7490" stroke-width="5"/>
+            <path d="M110 12 v36" stroke="#dc2626" stroke-width="9" stroke-linecap="round"/>
+            <path d="M110 112 v36" stroke="#15803d" stroke-width="9" stroke-linecap="round"/>
+            <path d="M70 30 l-12 -8 M70 30 l-12 8" stroke="#0e7490" stroke-width="5" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="num">MISSION 3</div>
+        <h3>Regatta loop</h3>
+        <p class="body" style="font-size:25px">Cross two gates in the right direction, as often as possible in 5 minutes.</p>
+        <ul class="facts"><li>Gates read from lat/lon file</li><li>+1 / −1 per crossing</li><li>Loops until time is up</li></ul>
+        <div style="margin-top:auto"><span class="pill sim"><span class="dot"></span>Built · tested in simulation</span></div>
+      </div>
+    </div>
+    <footer class="s-foot"><span>Team NavySeals · BEST 2026</span><span class="pg"></span></footer>
+  </section>
+
+  <!-- ============ 4 · STEERING ============ -->
+  <section class="slide">
+    <header class="s-head">
+      <div class="kicker">03 · Control</div>
+      <h2>How the boat steers itself</h2>
+    </header>
+    <div class="s-body grid-2" style="grid-template-columns: 0.9fr 1.1fr; align-items:center">
+      <div class="card" style="height:100%; display:grid; place-items:center; padding:20px">
+        <svg viewBox="0 0 640 640" style="width:100%; height:100%" font-family="Inter, sans-serif">
+          <defs>
+            <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#0e7490"/></marker>
+            <marker id="ar2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="#ea580c"/></marker>
+          </defs>
+          <!-- north -->
+          <path d="M60 140 V60" stroke="#5b6b82" stroke-width="4" marker-end="url(#ar)"/>
+          <text x="60" y="170" text-anchor="middle" font-weight="700" font-size="26" fill="#5b6b82">N</text>
+          <!-- bearing to target -->
+          <line x1="230" y1="390" x2="500" y2="120" stroke="#0e7490" stroke-width="4" stroke-dasharray="12 10"/>
+          <!-- heading axis -->
+          <line x1="230" y1="390" x2="307.6" y2="100.2" stroke="#0b1f3a" stroke-width="4" stroke-dasharray="4 10" stroke-linecap="round"/>
+          <!-- error arc -->
+          <path d="M274 225.8 A170 170 0 0 1 350.2 269.8" stroke="#ea580c" stroke-width="6" fill="none" marker-end="url(#ar2)"/>
+          <text x="352" y="214" font-family="JetBrains Mono, monospace" font-weight="600" font-size="34" fill="#ea580c">e</text>
+          <!-- target buoy -->
+          <circle cx="500" cy="120" r="22" fill="#15803d" stroke="#fff" stroke-width="5"/>
+          <text x="500" y="72" text-anchor="middle" font-weight="700" font-size="26" fill="#0b1f3a">Waypoint</text>
+          <text x="300" y="80" text-anchor="middle" font-weight="600" font-size="22" fill="#0b1f3a">heading θ</text>
+          <text x="440" y="250" font-weight="600" font-size="22" fill="#0e7490">bearing θ*</text>
+          <!-- boat -->
+          <g transform="translate(230,390) rotate(15)">
+            <path d="M0,-95 C30,-65 38,-25 38,25 L38,80 L-38,80 L-38,25 C-38,-25 -30,-65 0,-95 Z" fill="#ffffff" stroke="#0b1f3a" stroke-width="5"/>
+            <rect x="-30" y="80" width="14" height="16" rx="3" fill="#0b1f3a"/>
+            <rect x="16" y="80" width="14" height="16" rx="3" fill="#0b1f3a"/>
+            <path d="M-23 205 V108" stroke="#2563eb" stroke-width="9" stroke-linecap="round"/>
+            <path d="M-35 120 L-23 100 L-11 120" fill="none" stroke="#2563eb" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
+            <path d="M23 150 V108" stroke="#e11d48" stroke-width="9" stroke-linecap="round"/>
+            <path d="M11 120 L23 100 L35 120" fill="none" stroke="#e11d48" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"/>
+          </g>
+          <text x="290" y="548" font-weight="700" font-size="25" fill="#2563eb">Left motor: pushes harder</text>
+          <text x="290" y="584" font-weight="700" font-size="25" fill="#e11d48">Right motor: eases off</text>
+          <text x="290" y="620" font-size="23" fill="#5b6b82">→ boat turns right</text>
+        </svg>
+      </div>
+      <div class="steps">
+        <div class="step"><div><div class="t">Where is the waypoint?</div><div class="eq">θ* = atan2(x<sub>t</sub> − x, y<sub>t</sub> − y)</div></div></div>
+        <div class="step"><div><div class="t">How far off is our heading? (kept within ±180°)</div><div class="eq">e = sawtooth(θ* − θ)</div></div></div>
+        <div class="step"><div><div class="t">Set the two motors (clipped to 0…115)</div><div class="eq">u<sub>L</sub> = <span class="v">100</span> + <span class="v">35</span>·e &nbsp;&nbsp; u<sub>R</sub> = <span class="v">100</span> − <span class="v">35</span>·e</div></div></div>
+        <div class="step"><div><div class="t">Way off course? Spin on the spot</div><p class="small" style="margin-top:8px">If |e| &gt; 40°, motors go to ±95 until |e| &lt; 20°. A waypoint counts as reached within 3.5 m, or once we cross the line through it.</p></div></div>
+      </div>
+    </div>
+    <footer class="s-foot"><span>Control law from Prof. Luc Jaulin's DD-Boat course</span><span class="pg"></span></footer>
+  </section>
+
+  <!-- ============ 5 · COMPASS ============ -->
+  <section class="slide">
+    <header class="s-head">
+      <div class="kicker">04 · Sensors</div>
+      <h2>Making the compass tell the truth</h2>
+    </header>
+    <div class="s-body" style="display:grid; grid-template-rows: auto 1fr; gap:36px">
+      <div class="card" style="padding:26px 30px">
+        <svg viewBox="0 -30 1700 390" style="width:100%; height:auto" font-family="Inter, sans-serif">
+          <!-- raw panel -->
+          <text x="40" y="44" font-family="Plus Jakarta Sans, sans-serif" font-weight="800" font-size="30" fill="#0b1f3a">Raw magnetometer</text>
+          <text x="40" y="80" font-size="22" fill="#5b6b82">Screws, motors and battery bend the field:</text>
+          <text x="40" y="108" font-size="22" fill="#5b6b82">the circle becomes an off-centre ellipse.</text>
+          <line x1="380" y1="180" x2="720" y2="180" stroke="#cbd5e1" stroke-width="2"/>
+          <line x1="440" y1="30" x2="440" y2="320" stroke="#cbd5e1" stroke-width="2"/>
+          <g transform="translate(580,160) rotate(-22)">
+            <ellipse rx="130" ry="80" fill="none" stroke="#ea580c" stroke-width="3" stroke-dasharray="8 8"/>
+            <g fill="#ea580c">
+              <circle cx="130" cy="0" r="9"/><circle cx="112.6" cy="40" r="9"/><circle cx="65" cy="69.3" r="9"/><circle cx="0" cy="80" r="9"/>
+              <circle cx="-65" cy="69.3" r="9"/><circle cx="-112.6" cy="40" r="9"/><circle cx="-130" cy="0" r="9"/><circle cx="-112.6" cy="-40" r="9"/>
+              <circle cx="-65" cy="-69.3" r="9"/><circle cx="0" cy="-80" r="9"/><circle cx="65" cy="-69.3" r="9"/><circle cx="112.6" cy="-40" r="9"/>
+            </g>
+          </g>
+          <path d="M572 152 l16 16 M588 152 l-16 16" stroke="#0b1f3a" stroke-width="4"/>
+          <text x="596" y="150" font-family="Inter, sans-serif" font-style="italic" font-weight="700" font-size="28" fill="#0b1f3a">b</text>
+          <text x="618" y="150" font-family="Inter, sans-serif" font-size="20" fill="#5b6b82">offset</text>
+
+          <!-- arrow + formula -->
+          <path d="M770 175 H960" stroke="#0e7490" stroke-width="6"/>
+          <path d="M950 160 L972 175 L950 190" fill="none" stroke="#0e7490" stroke-width="6" stroke-linejoin="round"/>
+          <text x="866" y="132" text-anchor="middle" font-family="Inter, sans-serif" font-style="italic" font-weight="600" font-size="32" fill="#0b1f3a">m = A<tspan font-size="20" dy="-12" font-style="normal">−1</tspan><tspan dy="12"> (m</tspan><tspan font-size="20" dy="7">raw</tspan><tspan dy="-7"> − b)</tspan></text>
+          <text x="866" y="230" text-anchor="middle" font-size="22" fill="#5b6b82">fit from one slow 360° turn</text>
+
+          <!-- calibrated panel -->
+          <line x1="1040" y1="180" x2="1360" y2="180" stroke="#cbd5e1" stroke-width="2"/>
+          <line x1="1200" y1="40" x2="1200" y2="320" stroke="#cbd5e1" stroke-width="2"/>
+          <circle cx="1200" cy="180" r="120" fill="none" stroke="#0e7490" stroke-width="3" stroke-dasharray="8 8"/>
+          <g fill="#0e7490" transform="translate(1200,180)">
+            <circle cx="120" cy="0" r="9"/><circle cx="103.9" cy="60" r="9"/><circle cx="60" cy="103.9" r="9"/><circle cx="0" cy="120" r="9"/>
+            <circle cx="-60" cy="103.9" r="9"/><circle cx="-103.9" cy="60" r="9"/><circle cx="-120" cy="0" r="9"/><circle cx="-103.9" cy="-60" r="9"/>
+            <circle cx="-60" cy="-103.9" r="9"/><circle cx="0" cy="-120" r="9"/><circle cx="60" cy="-103.9" r="9"/><circle cx="103.9" cy="-60" r="9"/>
+          </g>
+          <text x="1400" y="150" font-family="Plus Jakarta Sans, sans-serif" font-weight="800" font-size="30" fill="#0b1f3a">Calibrated</text>
+          <text x="1400" y="188" font-size="22" fill="#5b6b82">A centred unit circle:</text>
+          <text x="1400" y="216" font-size="22" fill="#5b6b82">heading = angle on it.</text>
+        </svg>
+      </div>
+      <div class="grid-2" style="gap:36px">
+        <div class="insight" style="background:var(--orange-soft); border-color:#fed7b7">
+          <div class="bar" style="background:var(--orange)"></div>
+          <div>
+            <h3>Field problem: East and West were swapped</h3>
+            <p>After moving our code to a new boat, North and South read correctly, but pointing East read about 270° and pointing West about 90°.</p>
+          </div>
+        </div>
+        <div class="insight" style="background:var(--green-soft); border-color:#bfe5cc">
+          <div class="bar" style="background:var(--green)"></div>
+          <div>
+            <h3>Fix: flip the Y axis in the heading</h3>
+            <p><span class="mono" style="font-size:26px; color:var(--ink); font-weight:600">θ = atan2(−m<sub>y</sub>, m<sub>x</sub>)</span><br>applied in calib.py, waypoint_mission.py and regatta_loop.py.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <footer class="s-foot"><span>Team NavySeals · BEST 2026</span><span class="pg"></span></footer>
+  </section>
+
+  <!-- ============ 6 · GPS ============ -->
+  <section class="slide">
+    <header class="s-head">
+      <div class="kicker">05 · Positioning</div>
+      <h2>From GPS degrees to metres on the lake</h2>
+    </header>
+    <div class="s-body grid-2" style="grid-template-columns: 1fr 1fr; gap:64px">
+      <div style="display:flex; flex-direction:column; gap:30px">
+        <p class="lead" style="font-size:29px">Near the lake the Earth is almost flat, so we turn latitude and longitude into a simple x/y grid in metres around a fixed origin.</p>
+        <div class="eq">
+          <span class="v">x</span> = R · cos(lat₀) · (lon − lon₀) &nbsp;<span style="color:var(--muted)">East</span><br>
+          <span class="v">y</span> = R · (lat − lat₀) &nbsp;<span style="color:var(--muted)">North</span>
+        </div>
+        <p class="small">R = 6 371 km · origin 48.199111° N, 3.014930° W (Guerlédan reference)</p>
+        <table class="coords">
+          <tr><th>Buoy</th><th>GPS (lat, lon)</th><th>Local (x, y)</th></tr>
+          <tr><td><span style="color:var(--green)">●</span> Point A · shore</td><td class="mono">48.198863, −3.015070</td><td class="mono">(−10.4, −27.6) m</td></tr>
+          <tr><td><span style="color:var(--red)">●</span> Point B · lake</td><td class="mono">48.198259, −3.017114</td><td class="mono">(−161.9, −94.7) m</td></tr>
+        </table>
+      </div>
+      <div class="card" style="padding:24px; display:grid; place-items:center">
+        <svg viewBox="0 0 760 540" style="width:100%; height:100%" font-family="Inter, sans-serif">
+          <g stroke="#e2e8f0" stroke-width="2">
+            <line x1="605" y1="30" x2="605" y2="470"/><line x1="510" y1="30" x2="510" y2="470"/><line x1="415" y1="30" x2="415" y2="470"/>
+            <line x1="320" y1="30" x2="320" y2="470"/><line x1="225" y1="30" x2="225" y2="470"/><line x1="130" y1="30" x2="130" y2="470"/><line x1="35" y1="30" x2="35" y2="470"/>
+            <line x1="20" y1="155" x2="740" y2="155"/><line x1="20" y1="250" x2="740" y2="250"/><line x1="20" y1="345" x2="740" y2="345"/><line x1="20" y1="440" x2="740" y2="440"/>
+          </g>
+          <!-- axes from origin -->
+          <path d="M700 60 H748" stroke="#0b1f3a" stroke-width="4"/>
+          <path d="M738 50 L752 60 L738 70" fill="none" stroke="#0b1f3a" stroke-width="4"/>
+          <path d="M700 60 V14" stroke="#0b1f3a" stroke-width="4"/>
+          <path d="M690 24 L700 10 L710 24" fill="none" stroke="#0b1f3a" stroke-width="4"/>
+          <text x="742" y="96" text-anchor="end" font-size="20" font-weight="700" fill="#0b1f3a">x East</text>
+          <text x="684" y="26" text-anchor="end" font-size="20" font-weight="700" fill="#0b1f3a">y North</text>
+          <circle cx="700" cy="60" r="10" fill="#0b1f3a"/>
+          <text x="684" y="66" text-anchor="end" font-size="22" font-weight="700" fill="#0b1f3a">Origin</text>
+          <!-- A to B -->
+          <line x1="660.5" y1="164.9" x2="100" y2="411" stroke="#0e7490" stroke-width="6"/>
+          <path d="M112 392 L84.8 419.9 L123 418" fill="none" stroke="#0e7490" stroke-width="6" stroke-linejoin="round"/>
+          <circle cx="660.5" cy="164.9" r="16" fill="#15803d" stroke="#fff" stroke-width="4"/>
+          <circle cx="84.8" cy="419.9" r="16" fill="#dc2626" stroke="#fff" stroke-width="4"/>
+          <text x="660" y="214" text-anchor="middle" font-size="26" font-weight="800" fill="#15803d">A</text>
+          <text x="85" y="466" text-anchor="middle" font-size="26" font-weight="800" fill="#dc2626">B</text>
+          <g transform="translate(372.6,292.4) rotate(-23.9)">
+            <rect x="-150" y="-62" width="300" height="48" rx="12" fill="#fff" stroke="#bae6f0" stroke-width="2"/>
+            <text x="0" y="-29" text-anchor="middle" font-size="24" font-weight="800" fill="#0e7490">165.7 m · bearing 246.1°</text>
+          </g>
+          <text x="35" y="510" font-size="19" fill="#5b6b82">grid: 25 m</text>
+        </svg>
+      </div>
+    </div>
+    <footer class="s-foot"><span>Projection from Prof. Jaulin's drones textbook, p. 28</span><span class="pg"></span></footer>
+  </section>
+
+  <!-- ============ 7 · DIGITAL TWIN ============ -->
+  <section class="slide">
+    <header class="s-head">
+      <div class="kicker">06 · Digital twin</div>
+      <h2>We tested on a virtual boat first</h2>
+    </header>
+    <div class="s-body" style="display:grid; grid-template-rows: 1fr auto; gap:30px">
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:40px; min-height:0">
+        <figure style="display:flex; flex-direction:column; min-height:0">
+          <div class="shot" style="flex:1; min-height:0; background:#fff; border:1.5px solid var(--line); box-shadow:none; padding:10px">
+            <img src="simulation_validation_realistic.png" alt="Simulated box mission and regatta loop using the real scripts" style="object-fit:contain">
+          </div>
+          <figcaption>Real mission scripts on a simulated boat: 1 Hz GPS (~1 m error), 2° compass noise, 0.1 m/s wind.</figcaption>
+        </figure>
+        <figure style="display:flex; flex-direction:column; min-height:0">
+          <div class="shot" style="flex:1; min-height:0; background:#fff; border:1.5px solid var(--line); box-shadow:none; padding:10px">
+            <img src="lake_regatta_simulation.png" alt="Simulated A to B sprint" style="object-fit:contain">
+          </div>
+          <figcaption>Sprint course simulated on the real lake coordinates.</figcaption>
+        </figure>
+      </div>
+      <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:24px">
+        <div class="card stat" style="padding:24px 28px"><div class="num" style="font-size:54px; color:var(--teal)">84<span class="unit">s</span></div><div class="lbl">box finish time, median of 10 runs</div></div>
+        <div class="card stat" style="padding:24px 28px"><div class="num" style="font-size:54px; color:var(--teal)">10<span class="unit">/10</span></div><div class="lbl">simulated box runs finished</div></div>
+        <div class="card stat" style="padding:24px 28px"><div class="num" style="font-size:54px; color:var(--teal)">8–11</div><div class="lbl">regatta points per simulated 5-min race</div></div>
+        <div class="card stat" style="padding:24px 28px"><div class="num" style="font-size:54px; color:var(--teal)">~140<span class="unit">s</span></div><div class="lbl">predicted time for the A → B leg</div></div>
+      </div>
+    </div>
+    <footer class="s-foot"><span>Digital twin method: Antoine Morvan</span><span class="pg"></span></footer>
+  </section>
+
+  <!-- ============ 8 · RESULT: BOX ============ -->
+  <section class="slide">
+    <header class="s-head" style="margin-bottom:34px">
+      <div class="kicker">07 · Result on the lake</div>
+      <h2>Mission 1: the 15 m box, done for real</h2>
+    </header>
+    <div class="s-body" style="display:grid; grid-template-columns: 1040px 1fr; gap:48px">
+      <figure class="shot" style="height:100%">
+        <img src="slides_assets/box_satellite.png" alt="Box mission GPS track on satellite imagery">
+      </figure>
+      <div style="display:flex; flex-direction:column; gap:22px">
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:18px">
+          <div class="card stat" style="padding:26px"><div class="num" style="color:var(--green)">4<span class="unit">/4</span></div><div class="lbl">waypoints reached</div></div>
+          <div class="card stat" style="padding:26px"><div class="num">111<span class="unit">s</span></div><div class="lbl">start to finish</div></div>
+          <div class="card stat" style="padding:26px"><div class="num">2.8<span class="unit">m</span></div><div class="lbl">from the start point at the finish</div></div>
+          <div class="card stat" style="padding:26px"><div class="num">&lt;3.5<span class="unit">m</span></div><div class="lbl">every waypoint passed within</div></div>
+        </div>
+        <figure style="margin-top:auto">
+          <div class="shot" style="height:228px">
+            <img src="NavySeals/waypoint_box_mission_google_earth.png" alt="The same track opened in Google Earth">
+          </div>
+          <figcaption>Same track (box_mission_track.kml) opened in Google Earth.</figcaption>
+        </figure>
+      </div>
+    </div>
+    <footer class="s-foot"><span>Track: boat GPS log, drawn on Esri satellite imagery</span><span class="pg"></span></footer>
+  </section>
+
+  <!-- ============ 9 · RESULT: SPRINT MAP ============ -->
+  <section class="slide">
+    <header class="s-head" style="margin-bottom:30px">
+      <div class="kicker">08 · Result on the lake</div>
+      <h2>Mission 2: the A → B → A sprint</h2>
+    </header>
+    <div class="s-body" style="display:grid; grid-template-columns: 1fr 380px; gap:40px">
+      <figure class="shot" style="height:100%">
+        <img src="slides_assets/sprint_satellite.png" alt="Sprint GPS track on satellite imagery" style="object-fit:cover; object-position:center">
+      </figure>
+      <div style="display:flex; flex-direction:column; gap:18px">
+        <div class="card stat" style="padding:26px"><div class="num" style="color:var(--green)">3.7<span class="unit">m</span></div><div class="lbl">from buoy B when it turned back</div></div>
+        <div class="card stat" style="padding:26px"><div class="num">280<span class="unit">m</span></div><div class="lbl">travelled in total</div></div>
+        <div class="card stat" style="padding:26px"><div class="num">381<span class="unit">s</span></div><div class="lbl">of logged driving</div></div>
+        <div class="card stat" style="padding:26px; background:var(--orange-soft); border-color:#fed7b7"><div class="num" style="color:var(--orange)">84.6<span class="unit">m</span></div><div class="lbl">short of A when Wi-Fi dropped and the run stopped</div></div>
+      </div>
+    </div>
+    <footer class="s-foot"><span>380 GPS fixes from mission_track.kml · imagery Esri</span><span class="pg"></span></footer>
+  </section>
+
+  <!-- ============ 10 · SPRINT TELEMETRY ============ -->
+  <section class="slide">
+    <header class="s-head" style="margin-bottom:34px">
+      <div class="kicker">09 · Telemetry</div>
+      <h2>What the sprint log tells us</h2>
+    </header>
+    <div class="s-body" style="display:grid; grid-template-columns: 1.6fr 1fr; gap:44px">
+      <figure style="display:flex; flex-direction:column; min-height:0">
+        <div class="shot" style="flex:1; min-height:0; background:#fff; border:1.5px solid var(--line); box-shadow:none; padding:12px">
+          <img src="slides_assets/sprint_telemetry.png" alt="Distance to target and motor commands over time" style="object-fit:contain">
+        </div>
+        <figcaption>Top: distance to the current target. Bottom: motor commands; drops to −95 are spin-in-place turns.</figcaption>
+      </figure>
+      <div style="display:flex; flex-direction:column; gap:20px; justify-content:space-between">
+        <div class="insight">
+          <div class="bar" style="background:var(--gold)"></div>
+          <div><h3>A → B was slow: 0.59 m/s</h3><p>281 s for 166 m. The heading error kept passing 40°, so the boat made <b>72 spin turns</b> (81 s spinning).</p></div>
+        </div>
+        <div class="insight">
+          <div class="bar" style="background:var(--orange)"></div>
+          <div><h3>B → A was 50% faster: 0.89 m/s</h3><p>Only 10 spin turns. Both motors stayed close to full power.</p></div>
+        </div>
+        <div class="insight">
+          <div class="bar" style="background:var(--teal)"></div>
+          <div><h3>Simulation vs lake</h3><p>The twin predicted about 140 s for A → B; the real leg took twice as long. The box took 111 s vs 84 s simulated.</p></div>
+        </div>
+      </div>
+    </div>
+    <footer class="s-foot"><span>Source: NavySeals/mission_log.csv · 3 476 rows at ~9 Hz</span><span class="pg"></span></footer>
+  </section>
+
+  <!-- ============ 11 · SAFETY ============ -->
+  <section class="slide">
+    <header class="s-head">
+      <div class="kicker">10 · Reliability</div>
+      <h2>Built so we never lose the boat or the data</h2>
+    </header>
+    <div class="s-body" style="display:grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: 1fr 1fr; gap:28px">
+      <div class="tile">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="13" rx="2"/><path d="M7 21h10M7 9l3 2-3 2M12 13h4"/></svg></div>
+        <h3>Run inside screen</h3><p>Learned on the sprint: started from SSH, it stopped when Wi-Fi dropped. <span class="mono">screen -S sprint</span> keeps it running on the Pi.</p>
+      </div>
+      <div class="tile">
+        <div class="icon" style="background:var(--red-soft); color:var(--red)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9 2h6"/></svg></div>
+        <h3>GPS watchdog</h3><p>No GPS fix for 3 seconds: both motors go to zero. No blind driving.</p>
+      </div>
+      <div class="tile">
+        <div class="icon" style="background:var(--green-soft); color:var(--green)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v5h7V3M8 21v-7h8v7"/></svg></div>
+        <h3>Track autosave</h3><p>The KML track is written to disk every 5 seconds, so a power cut loses almost nothing.</p>
+      </div>
+      <div class="tile">
+        <div class="icon" style="background:var(--red-soft); color:var(--red)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2h8l6 6v8l-6 6H8l-6-6V8z"/><path d="M8 12h8"/></svg></div>
+        <h3>Emergency stop</h3><p><span class="mono">stop.py</span> sets both motors to 0 at once.</p>
+      </div>
+      <div class="tile">
+        <div class="icon" style="background:var(--orange-soft); color:var(--orange)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M4 21h16"/></svg></div>
+        <h3>Auto download</h3><p>A laptop script waits for the boat to reconnect, then pulls the KML and CSV logs.</p>
+      </div>
+      <div class="tile">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5M4 19h16M8 15l3-4 3 2 5-6"/></svg></div>
+        <h3>Everything logged</h3><p>Position, target, heading, error and both motor commands, about 9 times per second.</p>
+      </div>
+    </div>
+    <footer class="s-foot"><span>Team NavySeals · BEST 2026</span><span class="pg"></span></footer>
+  </section>
+
+  <!-- ============ 13 · THANK YOU ============ -->
+  <section class="slide" style="padding:0">
+    <figure class="photo missing quiet" style="position:absolute; inset:0; border-radius:0">
+      <img data-photo="boat3,sprint_clean" alt="Sprint track on Guerlédan Lake" style="object-position: 70% 50%">
+      <div class="ph"></div>
+    </figure>
+    <div style="position:absolute; inset:0; background:linear-gradient(90deg, rgba(255,255,255,.96) 0%, rgba(255,255,255,.88) 42%, rgba(255,255,255,0) 72%)"></div>
+    <div style="position:relative; z-index:2; padding:0 120px; height:100%; display:flex; flex-direction:column; justify-content:center; max-width:1100px">
+      <div class="kicker">Team NavySeals · Guerlédan 2026</div>
+      <h1 style="font-size:150px; font-weight:800; letter-spacing:-.03em; line-height:1; margin:28px 0">Thank you</h1>
+      <p class="lead" style="font-size:38px">Questions?</p>
+      <p class="small" style="margin-top:46px; font-size:24px">Thanks to Prof. Luc Jaulin, Prof. Benoît Zerr and Antoine Morvan, and to the ENSTA Bretagne team at Guerlédan.</p>
+    </div>
+  </section>
+
+  <div class="progress" id="progress"></div>
+</div>
+
+<div class="controls">
+  <button onclick="go(cur-1)" aria-label="Previous slide">◀</button>
+  <span class="count" id="count">1 / 1</span>
+  <button onclick="go(cur+1)" aria-label="Next slide">▶</button>
+  <button onclick="toggleFs()">Fullscreen</button>
+</div>
+
+<script>
+  // ---------- boat photos: try boatN.(jpg|jpeg|png|webp), then fallbacks, then placeholder ----------
+  const PH_HTML = '<svg viewBox="0 0 220 120" fill="none"><path d="M20 70 H200 L178 100 H42 Z" fill="currentColor" opacity=".22"/><path d="M20 70 H200 L178 100 H42 Z" stroke="currentColor" stroke-width="5" stroke-linejoin="round"/><path d="M70 70 V40 H150 L165 70" stroke="currentColor" stroke-width="5" stroke-linejoin="round"/><path d="M10 112 q18 -10 36 0 t36 0 t36 0 t36 0 t36 0 t36 0" stroke="currentColor" stroke-width="4" opacity=".6"/></svg>';
+  function setupPhoto(img) {
+    const fig = img.closest('.photo');
+    const names = img.dataset.photo.split(',');
+    const exts = ['jpg', 'jpeg', 'png', 'webp', 'JPG', 'JPEG', 'PNG'];
+    const list = [];
+    names.forEach(n => ['', 'slides_assets/'].forEach(d => exts.forEach(e => list.push(d + n.trim() + '.' + e))));
+    const ph = fig.querySelector('.ph');
+    ph.innerHTML = PH_HTML + '<b>Boat photo goes here</b><span>Save it next to this file as <b style="font-size:22px">' + names[0].trim() + '.jpg</b></span>';
+    let i = 0;
+    img.onload = () => fig.classList.remove('missing');
+    img.onerror = () => { if (i < list.length) img.src = list[i++]; };
+    img.src = list[i++];
+  }
+  document.querySelectorAll('img[data-photo]').forEach(setupPhoto);
+
+  // ---------- scaling ----------
+  const stage = document.getElementById('stage');
+  function fit() {
+    const s = Math.min(window.innerWidth / 1920, window.innerHeight / 1080);
+    stage.style.transform = 'translate(-50%, -50%) scale(' + s + ')';
+  }
+  window.addEventListener('resize', fit);
+  fit();
+
+  // ---------- navigation ----------
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  const total = slides.length;
+  slides.forEach((s, i) => { const pg = s.querySelector('.pg'); if (pg) pg.textContent = (i + 1) + ' / ' + total; });
+  let cur = 0;
+  function go(n) {
+    cur = Math.max(0, Math.min(total - 1, n));
+    slides.forEach((s, i) => s.classList.toggle('active', i === cur));
+    document.getElementById('count').textContent = (cur + 1) + ' / ' + total;
+    document.getElementById('progress').style.width = ((cur + 1) / total * 100) + '%';
+    if (location.hash !== '#' + (cur + 1)) history.replaceState(null, '', '#' + (cur + 1));
+  }
+  function toggleFs() {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
+    else document.exitFullscreen();
+  }
+  document.addEventListener('keydown', e => {
+    if (['ArrowRight', 'ArrowDown', 'PageDown', ' ', 'Enter'].includes(e.key)) { e.preventDefault(); go(cur + 1); }
+    else if (['ArrowLeft', 'ArrowUp', 'PageUp', 'Backspace'].includes(e.key)) { e.preventDefault(); go(cur - 1); }
+    else if (e.key === 'Home') go(0);
+    else if (e.key === 'End') go(total - 1);
+    else if (e.key === 'f' || e.key === 'F') toggleFs();
+  });
+  let tx = null;
+  document.addEventListener('touchstart', e => { tx = e.touches[0].clientX; }, { passive: true });
+  document.addEventListener('touchend', e => {
+    if (tx === null) return;
+    const dx = e.changedTouches[0].clientX - tx;
+    if (Math.abs(dx) > 50) go(cur + (dx < 0 ? 1 : -1));
+    tx = null;
+  });
+  let uiTimer;
+  document.addEventListener('mousemove', () => {
+    document.body.classList.add('show-ui');
+    clearTimeout(uiTimer);
+    uiTimer = setTimeout(() => document.body.classList.remove('show-ui'), 1800);
+  });
+  if (location.search.indexOf('static') !== -1) document.body.classList.add('no-anim');  // ?static: no fade (screenshots)
+  go((parseInt(location.hash.slice(1), 10) || 1) - 1);
+</script>
+</body>
+</html>

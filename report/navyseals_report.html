@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Team NavySeals · BEST 2026 Report</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@600;700;800&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;0,8..60,700;1,8..60,400&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+  /* Build the PDF with:  python report/build_report.py  (headless Chrome, A4, 4 pages) */
+  @page { size: A4; margin: 0; }
+  :root {
+    --ink: #0b1f3a; --ink-2: #26364d; --muted: #5b6b82; --line: #d7e0ea;
+    --teal: #0e7490; --teal-soft: #e6f4f8; --orange: #c2410c; --orange-soft: #fff1e7;
+    --green: #15803d; --red: #dc2626;
+    --head: 'Plus Jakarta Sans', 'Segoe UI', sans-serif;
+    --serif: 'Source Serif 4', Georgia, serif;
+    --sans: 'Inter', 'Segoe UI', sans-serif;
+    --mono: 'JetBrains Mono', Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: #e6edf5; }
+  body { font-family: var(--serif); color: var(--ink-2); font-size: 9.6pt; line-height: 1.42; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .page {
+    width: 210mm; height: 297mm; margin: 0 auto 8mm; background: #fff;
+    padding: 14mm 15mm 16mm; position: relative; overflow: hidden;
+    break-after: page; page-break-after: always;
+  }
+  .page:last-child { break-after: auto; page-break-after: auto; }
+  @media print { html, body { background: #fff; } .page { margin: 0; } }
+
+  h1, h2, h3 { font-family: var(--head); color: var(--ink); margin: 0; }
+  h1 { font-size: 21pt; line-height: 1.15; letter-spacing: -.01em; font-weight: 800; }
+  h2 { font-size: 12.5pt; font-weight: 800; margin: 5.2mm 0 2mm; display: flex; align-items: baseline; gap: 2.4mm; }
+  h2 .n { color: var(--teal); }
+  h3 { font-size: 10.2pt; font-weight: 700; margin: 3.2mm 0 1.2mm; }
+  p { margin: 0 0 2mm; text-align: justify; hyphens: auto; }
+  b, strong { color: var(--ink); font-weight: 700; }
+  a { color: var(--teal); text-decoration: none; font-weight: 600; }
+  .mono { font-family: var(--mono); font-size: 8.4pt; }
+  ul { margin: 0 0 2mm; padding-left: 4.6mm; }
+  li { margin-bottom: 1mm; }
+
+  .kicker { font-family: var(--head); font-weight: 700; font-size: 8pt; letter-spacing: .14em; text-transform: uppercase; color: var(--teal); }
+  .title-band { border-bottom: 2px solid var(--ink); padding-bottom: 4mm; margin-bottom: 4mm; }
+  .title-band h1 { margin: 2mm 0 1.6mm; }
+  .title-band .sub { font-family: var(--sans); font-size: 10.5pt; color: var(--muted); }
+  .meta { display: grid; grid-template-columns: 1.25fr 1fr .7fr; gap: 5mm; margin-top: 3.4mm; font-family: var(--sans); font-size: 8.6pt; color: var(--ink); }
+  .meta .lbl { font-size: 7pt; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 600; margin-bottom: .8mm; }
+
+  .links { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3mm; margin: 0 0 4mm; }
+  .link { border: 1.2px solid #bfe0ea; background: var(--teal-soft); border-radius: 3mm; padding: 2.6mm 3.2mm; font-family: var(--sans); }
+  .link .t { font-family: var(--head); font-weight: 800; font-size: 9.2pt; color: var(--ink); display: flex; align-items: center; gap: 1.6mm; }
+  .link .t svg { width: 4mm; height: 4mm; color: var(--teal); }
+  .link a { display: block; font-size: 7.4pt; margin-top: .8mm; word-break: break-all; line-height: 1.3; }
+
+  .abstract { background: #f5f8fc; border-left: 3px solid var(--teal); padding: 3mm 4mm; margin-bottom: 1mm; }
+  .abstract p { margin: 0; }
+  .abstract .kicker { margin-bottom: 1mm; }
+
+  table { width: 100%; border-collapse: collapse; font-family: var(--sans); font-size: 8.1pt; margin: 1mm 0 2.4mm; }
+  th { text-align: left; font-weight: 600; color: var(--muted); font-size: 7.2pt; letter-spacing: .06em; text-transform: uppercase; padding: 1.2mm 1.6mm; border-bottom: 1.5px solid var(--ink); }
+  td { padding: 1.3mm 1.6mm; border-bottom: 1px solid var(--line); color: var(--ink-2); vertical-align: top; }
+  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+  .ok { color: var(--green); font-weight: 700; }
+  .warn { color: var(--orange); font-weight: 700; }
+  .sim { color: var(--teal); font-weight: 700; }
+
+  .eq { font-family: var(--mono); font-size: 8.4pt; background: #f5f8fc; border: 1px solid var(--line); border-radius: 2mm; padding: 2mm 3mm; margin: 1mm 0 2.4mm; color: var(--ink); line-height: 1.55; }
+  .eq .c { color: var(--muted); font-family: var(--sans); font-size: 7.6pt; }
+
+  figure { margin: 1mm 0 3mm; }
+  figure img { display: block; width: 100%; border-radius: 2mm; border: 1px solid var(--line); }
+  figcaption { font-family: var(--sans); font-size: 7.6pt; color: var(--muted); margin-top: 1.4mm; line-height: 1.35; }
+  figcaption b { color: var(--ink); }
+
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 6mm; }
+  .cols-32 { display: grid; grid-template-columns: 1.15fr 1fr; gap: 6mm; align-items: start; }
+  .box { border: 1px solid var(--line); border-radius: 2.4mm; padding: 2.6mm 3.4mm; background: #fbfcfe; }
+  .callout { border-radius: 2.4mm; padding: 2.4mm 3.4mm; font-family: var(--sans); font-size: 8.2pt; line-height: 1.4; margin: 1mm 0 2.4mm; }
+  .callout.o { background: var(--orange-soft); border-left: 3px solid var(--orange); }
+  .callout.g { background: #e9f7ee; border-left: 3px solid var(--green); }
+  .callout b { color: var(--ink); }
+
+  .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 2.4mm; margin: 1mm 0 2.6mm; }
+  .stat { border: 1px solid var(--line); border-radius: 2.4mm; padding: 2.2mm 2.8mm; font-family: var(--sans); }
+  .stat .v { font-family: var(--head); font-weight: 800; font-size: 14pt; color: var(--ink); line-height: 1.1; }
+  .stat .v small { font-size: 8.5pt; margin-left: .5mm; }
+  .stat .l { font-size: 7.2pt; color: var(--muted); margin-top: .6mm; line-height: 1.3; }
+
+  .photo-slot { border-radius: 2.4mm; overflow: hidden; border: 1px solid var(--line); }
+  .photo-slot img { display: block; width: 100%; height: 100%; object-fit: cover; border: 0; border-radius: 0; }
+
+  .foot { position: absolute; left: 15mm; right: 15mm; bottom: 7mm; display: flex; justify-content: space-between; font-family: var(--sans); font-size: 7.2pt; color: var(--muted); border-top: 1px solid var(--line); padding-top: 2mm; }
+  .foot a { font-weight: 600; }
+  .refs { font-family: var(--sans); font-size: 7.6pt; color: var(--ink-2); padding-left: 5mm; margin: 0; }
+  .refs li { margin-bottom: .8mm; }
+</style>
+</head>
+<body>
+
+<!-- ======================= PAGE 1 ======================= -->
+<section class="page">
+  <div class="title-band">
+    <div class="kicker">BEST 2026 · ENSTA Bretagne · Guerlédan Lake, Brittany</div>
+    <h1>Autonomous Navigation of a Differential-Drive Boat on Guerlédan Lake</h1>
+    <div class="sub">Project report: compass calibration, GPS guidance, digital twin and lake trials</div>
+    <div class="meta">
+      <div><div class="lbl">Team NavySeals</div>Vamshidhar Reddy Enugala · Samuel Mastroscianni · Jakub Grygierczyk · Natlach</div>
+      <div><div class="lbl">Supervisors</div>Prof. Luc Jaulin · Prof. Benoît Zerr · Antoine Morvan</div>
+      <div><div class="lbl">Date</div>October 2026</div>
+    </div>
+  </div>
+
+  <div class="links">
+    <div class="link">
+      <div class="t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="13" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Presentation slides</div>
+      <a href="https://vamshidharre.github.io/BEST_Breast/navyseals_presentation.html">vamshidharre.github.io/BEST_Breast/navyseals_presentation.html</a>
+    </div>
+    <div class="link">
+      <div class="t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 18l6-6-6-6M8 6l-6 6 6 6"/></svg>Source code (GitHub)</div>
+      <a href="https://github.com/vamshidharre/BEST_Breast">github.com/vamshidharre/BEST_Breast</a>
+    </div>
+    <div class="link">
+      <div class="t"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg>Boat code, logs &amp; KML</div>
+      <a href="https://github.com/vamshidharre/BEST_Breast/tree/main/NavySeals">github.com/vamshidharre/BEST_Breast/tree/main/NavySeals</a>
+    </div>
+  </div>
+
+  <div class="abstract">
+    <div class="kicker">Abstract</div>
+    <p>We programmed a DD-Boat, a small autonomous surface vessel steered only by the speed difference of two thrusters, to navigate GPS waypoints on Guerlédan Lake. The work covered magnetometer calibration, projection of GPS fixes to a local metric frame, a proportional heading controller with a spin-in-place mode, and a digital twin used to test the real mission scripts before deployment. On the lake, the boat completed a 15 m box mission (4/4 waypoints, 111 s, loop closed within 2.8 m) and a high-speed sprint in which it reached a buoy 166 m away within 3.7 m. The return leg was cut 84.6 m before the finish when Wi-Fi dropped. We analyse 3,476 telemetry samples, compare them with the simulation, and list the changes these results call for.</p>
+  </div>
+
+  <h2><span class="n">1</span>Introduction and objectives</h2>
+  <p>A DD-Boat has no rudder: turning comes from running the left and right motors at different speeds. Its only navigation sensors are a 9-axis IMU, used as a compass, and a GPS receiver giving about one fix per second. All control runs on board. The laptop is only used to start missions and download logs over the lake Wi-Fi. We set three missions of increasing difficulty:</p>
+  <table>
+    <tr><th>Mission</th><th>Goal</th><th>Script</th><th>Status</th></tr>
+    <tr><td><b>1 · 15 m box</b></td><td>Visit four waypoints on a 15 m square and return to the start</td><td class="mono">waypoint_mission.py</td><td class="ok">Completed on the lake</td></tr>
+    <tr><td><b>2 · Sprint</b></td><td>Dock → A → B → A at full speed between two buoys 165.7 m apart</td><td class="mono">waypoint_mission.py</td><td class="warn">B reached; return cut by Wi-Fi drop</td></tr>
+    <tr><td><b>3 · Regatta</b></td><td>Cross two gates in the scoring direction as often as possible in 5 min</td><td class="mono">regatta_loop.py</td><td class="sim">Built and validated in simulation</td></tr>
+  </table>
+
+  <h2><span class="n">2</span>Platform</h2>
+  <div id="platform">
+    <figure class="photo-slot" id="boat-photo" style="float:right; width:64mm; height:43mm; margin:0.5mm 0 1mm 5mm">
+      <img data-photo="boat1" alt="DD-Boat">
+    </figure>
+    <ul>
+      <li><b>Propulsion:</b> two brushless thrusters driven by an Arduino Mega 2560; no rudder.</li>
+      <li><b>Computer:</b> Raspberry Pi 3, Raspbian Stretch, Python 3.5.3 (no f-strings, no SciPy: NumPy only).</li>
+      <li><b>Sensors:</b> Pololu 9-DOF IMU (LIS3MDL magnetometer, LSM6DS33 accel/gyro) and a serial NMEA GPS.</li>
+      <li><b>Operations:</b> SSH over the lake Wi-Fi; CSV logs at about 9 Hz and KML tracks for Google Earth.</li>
+      <li><b>Vessels:</b> DD-Boat 11 for the lake trials, then DD-Boat 18, where the compass axis problem of §3.2 appeared.</li>
+    </ul>
+  </div>
+
+  <div class="foot"><span>Team NavySeals · BEST 2026 · <a href="https://vamshidharre.github.io/BEST_Breast/navyseals_presentation.html">slides</a> · <a href="https://github.com/vamshidharre/BEST_Breast">code</a></span><span>1 / 4</span></div>
+</section>
+
+<!-- ======================= PAGE 2 ======================= -->
+<section class="page">
+  <h2 style="margin-top:0"><span class="n">3</span>Method</h2>
+
+  <h3>3.1 Boat model</h3>
+  <p>We use the nautical convention (θ = 0 north, clockwise positive; x east, y north). The digital twin integrates this model; u<sub>L</sub>, u<sub>R</sub> are motor PWM commands and (w<sub>x</sub>, w<sub>y</sub>) a constant wind/current drift.</p>
+  <div class="eq" style="font-size:7.9pt">dx/dt = v·sin θ + w<sub>x</sub> &nbsp; dy/dt = v·cos θ + w<sub>y</sub> &nbsp; dθ/dt = k₁(u<sub>L</sub> − u<sub>R</sub>) &nbsp; dv/dt = k₂(u<sub>L</sub> + u<sub>R</sub>)/2 − c·v|v|</div>
+
+  <div class="cols">
+    <div>
+      <h3>3.2 Compass calibration and the axis fix</h3>
+      <p>Nearby iron (screws, motors, battery) shifts and squashes the magnetic field, so a full turn of the boat traces an off-centre ellipse instead of a circle. From one slow 360° turn we fit the offset <i>b</i> and the matrix <i>A</i>, then correct each reading:</p>
+      <div class="eq">m = A⁻¹·(m<sub>raw</sub> − b) <br>θ = atan2(−m<sub>y</sub>, m<sub>x</sub>) <span class="c">heading, marine convention</span></div>
+      <div class="callout o"><b>Field problem.</b> After moving our code to Boat 18, North and South were right but East and West were swapped. The magnetometer's Y axis points the opposite way to the nautical frame. Negating m<sub>y</sub> fixed it in <span class="mono">calib.py</span>, <span class="mono">waypoint_mission.py</span> and <span class="mono">regatta_loop.py</span>. Calibration is specific to each hull.</div>
+    </div>
+    <div>
+      <h3>3.3 GPS to local metres</h3>
+      <p>Over a few hundred metres the Earth is flat enough for an equirectangular projection around a fixed origin (lat₀, lon₀) = (48.199111° N, 3.014930° W), with R = 6 371 km:</p>
+      <div class="eq">x = R·cos(lat₀)·(lon − lon₀) <span class="c">east</span><br>y = R·(lat − lat₀) <span class="c">north</span></div>
+      <table>
+        <tr><th>Buoy</th><th>Latitude, longitude</th><th class="num">x, y (m)</th></tr>
+        <tr><td><b>A</b> shore</td><td class="mono">48.198863, −3.015070</td><td class="num mono">−10.4, −27.6</td></tr>
+        <tr><td><b>B</b> lake</td><td class="mono">48.198259, −3.017114</td><td class="num mono">−161.9, −94.7</td></tr>
+      </table>
+      <p>A → B is 165.7 m on a bearing of 246.1° (return 66.1°). To avoid acting on stale data, the GPS serial buffer is drained every cycle and only the newest fix is used.</p>
+    </div>
+  </div>
+
+  <h3>3.4 Guidance and control</h3>
+  <p>The bearing to the active waypoint is compared with the compass heading; the error is wrapped to ±180° with a sawtooth function and fed to a proportional law on the two motors:</p>
+  <div class="eq">θ* = atan2(x<sub>t</sub> − x, y<sub>t</sub> − y) &nbsp;&nbsp; e = sawtooth(θ* − θ) &nbsp;&nbsp; u<sub>L</sub> = v₀ + K<sub>p</sub>·e, &nbsp; u<sub>R</sub> = v₀ − K<sub>p</sub>·e</div>
+  <p>Both commands are clipped to [0, 115]. When |e| exceeds 40° the boat switches to a <b>spin-in-place</b> turn (u<sub>L</sub> = −u<sub>R</sub>, ±75 in the box run and ±95 in the sprint) and stays in it until |e| &lt; 20°. The hysteresis stops it from switching back and forth. A waypoint is reached when the boat is within the arrival radius, or when it has come within 3.5 m and crossed the line through the waypoint perpendicular to the leg (⟨b − a, m − b⟩ &gt; 0). This catches near misses without circling back. Box settings: v₀ = 70, K<sub>p</sub> = 28, radius 2.5 m. Sprint settings: v₀ = 100, K<sub>p</sub> = 35, radius 3.5 m.</p>
+
+  <h3>3.5 Digital twin</h3>
+  <div class="cols-32" style="grid-template-columns: 1.35fr 1fr">
+    <figure style="margin:0">
+      <img src="../simulation_validation_realistic.png" alt="Simulation of box mission and regatta">
+      <figcaption><b>Fig. 1.</b> The unmodified mission scripts driving a simulated boat (1 Hz GPS with ~1 m error, 2° compass noise, 0.1 m/s drift, weaker left motor). Left: 15 m box. Right: regatta gates.</figcaption>
+    </figure>
+    <div>
+      <p>Following A. Morvan's method, we swapped the hardware drivers for the model above with realistic sensor noise and ran the <b>real</b> mission scripts against it. In 10 runs every box mission finished (median 84 s). The regatta loop scored 8–11 points per 5-minute race, its own count matching the true gate crossings. On the real buoy coordinates, the twin predicted about 140 s for A → B.</p>
+    </div>
+  </div>
+
+  <div class="foot"><span>Team NavySeals · BEST 2026 · <a href="https://github.com/vamshidharre/BEST_Breast">github.com/vamshidharre/BEST_Breast</a></span><span>2 / 4</span></div>
+</section>
+
+<!-- ======================= PAGE 3 ======================= -->
+<section class="page">
+  <h2 style="margin-top:0"><span class="n">4</span>Field results</h2>
+
+  <h3>4.1 Mission 1: 15 m box (DD-Boat 11)</h3>
+  <div class="cols-32" style="grid-template-columns: 1.08fr 1fr">
+    <figure style="margin:0">
+      <img src="../slides_assets/box_satellite.png" alt="Box mission track on satellite imagery">
+      <figcaption><b>Fig. 2.</b> Logged GPS track of the box mission on satellite imagery, with a zoom on the 15 m square. Dashed circles: 2.5 m arrival radius. Data: <a href="https://github.com/vamshidharre/BEST_Breast/blob/main/NavySeals/box_mission_track.kml">box_mission_track.kml</a>, <a href="https://github.com/vamshidharre/BEST_Breast/blob/main/NavySeals/box_mission_log.csv">box_mission_log.csv</a>.</figcaption>
+    </figure>
+    <div>
+      <div class="stats" style="grid-template-columns: 1fr 1fr">
+        <div class="stat"><div class="v" style="color:var(--green)">4/4</div><div class="l">waypoints reached</div></div>
+        <div class="stat"><div class="v">111<small>s</small></div><div class="l">total time (sim: 84 s)</div></div>
+        <div class="stat"><div class="v">2.8<small>m</small></div><div class="l">finish to start distance</div></div>
+        <div class="stat"><div class="v">0.59<small>m/s</small></div><div class="l">mean speed, 65 m path</div></div>
+      </div>
+      <table>
+        <tr><th>Leg</th><th class="num">Time (s)</th><th class="num">Closest (m)</th></tr>
+        <tr><td>Start → WP1 (15 m east)</td><td class="num">26.7</td><td class="num">2.5</td></tr>
+        <tr><td>WP1 → WP2</td><td class="num">19.6</td><td class="num">2.6</td></tr>
+        <tr><td>WP2 → WP3</td><td class="num">30.7</td><td class="num">3.4</td></tr>
+        <tr><td>WP3 → WP4 (home)</td><td class="num">32.5</td><td class="num">2.8</td></tr>
+      </table>
+      <p>WP3 was validated by the line-crossing rule (closest pass 3.4 m, outside the 2.5 m circle). Corners are rounded because the boat turns while still moving.</p>
+    </div>
+  </div>
+
+  <h3>4.2 Mission 2: Dock → A → B → A sprint</h3>
+  <figure>
+    <img src="../slides_assets/sprint_satellite_wide.png" alt="Sprint track on satellite imagery">
+    <figcaption><b>Fig. 3.</b> Sprint track from 380 GPS fixes (<a href="https://github.com/vamshidharre/BEST_Breast/blob/main/NavySeals/mission_track.kml">mission_track.kml</a>), coloured by leg. White dashes: the ideal A–B line. Imagery © Esri, Maxar, Earthstar Geographics.</figcaption>
+  </figure>
+  <table>
+    <tr><th>Leg</th><th class="num">Straight-line</th><th class="num">Time</th><th class="num">Speed made good</th><th class="num">Spin turns</th><th>Outcome</th></tr>
+    <tr><td>Dock → A</td><td class="num">9.4 m</td><td class="num">11.7 s</td><td class="num">0.44 m/s</td><td class="num">1</td><td class="ok">Reached</td></tr>
+    <tr><td>A → B</td><td class="num">165.7 m</td><td class="num">280.9 s</td><td class="num">0.59 m/s</td><td class="num">72 (81 s)</td><td class="ok">Reached B within 3.7 m</td></tr>
+    <tr><td>B → A</td><td class="num">165.7 m</td><td class="num">88.2 s</td><td class="num">0.89 m/s</td><td class="num">10</td><td class="warn">Stopped 84.6 m from A</td></tr>
+    <tr><td><b>Total</b></td><td class="num"></td><td class="num"><b>381 s</b></td><td class="num"></td><td class="num"></td><td>280 m travelled · 3,476 log rows</td></tr>
+  </table>
+  <div class="callout o"><b>Why the run stopped.</b> The mission was started directly in the SSH session. When Wi-Fi dropped on the return leg, the script and its log stopped with it, 84.6 m before A. The boat was still on course at near full power (u ≈ 101/98). Running missions inside <span class="mono">screen -S sprint</span> keeps them alive through a disconnect. The planned re-run was cancelled because of heavy wind and rain.</div>
+
+  <div class="foot"><span>Team NavySeals · BEST 2026 · <a href="https://vamshidharre.github.io/BEST_Breast/navyseals_presentation.html">slides</a></span><span>3 / 4</span></div>
+</section>
+
+<!-- ======================= PAGE 4 ======================= -->
+<section class="page">
+  <h3 style="margin-top:0">4.3 Telemetry analysis</h3>
+  <div class="cols-32" style="grid-template-columns: 1.5fr 1fr; gap:5mm">
+  <figure style="margin:0">
+    <img src="../slides_assets/sprint_telemetry.png" alt="Sprint telemetry">
+    <figcaption><b>Fig. 4.</b> Sprint telemetry (<a href="https://github.com/vamshidharre/BEST_Breast/blob/main/NavySeals/mission_log.csv">mission_log.csv</a>). Top: distance to the active waypoint. Bottom: motor commands; drops to −95 mark spin-in-place turns.</figcaption>
+  </figure>
+  <div>
+  <p>The outbound leg was the weak point. The heading error crossed the 40° threshold 72 times, and the boat spent 81 s (29% of the leg) spinning in place. At 0.59 m/s made good, the leg took 281 s, twice the 140 s the twin predicted. The two plateaus in the distance curve, around 170–200 s and 230–260 s, are where the boat stalled, spinning and drifting. On the way back, the same controller made only 10 spin turns and held 0.89 m/s with both motors near full power. The code and gains were identical in both directions, which suggests the outbound heading was fighting the wind and waves rather than a software fault.</p>
+  </div>
+  </div>
+
+  <div class="cols">
+    <div>
+      <h2><span class="n">5</span>Reliability and safety</h2>
+      <ul>
+        <li><b>GPS watchdog:</b> no fix for 3 s sets both motors to zero.</li>
+        <li><b>Track autosave:</b> the KML is rewritten every 5 s, so a power cut loses almost nothing.</li>
+        <li><b>Emergency stop:</b> <span class="mono">stop.py</span> forces (0, 0) immediately.</li>
+        <li><b>Auto download:</b> a laptop script waits for the boat to reconnect, then copies the KML and CSV.</li>
+        <li><b>Detached sessions</b> (lesson from the sprint): starting missions inside <span class="mono">screen</span> keeps them running through a Wi-Fi drop.</li>
+      </ul>
+    </div>
+    <div>
+      <h2><span class="n">6</span>Discussion</h2>
+      <p><b>Simulation vs lake.</b> The twin was right about behaviour (all waypoints reached, correct gate logic) but optimistic about time: 84 s vs 111 s for the box, 140 s vs 281 s for A → B. Its wind and wave model is too gentle, and spin turns cost more on real water.</p>
+      <p><b>Sensors.</b> One sign error swapped East and West on a new boat: each hull needs its own calibration and a four-point compass check.</p>
+      <p><b>Operations.</b> The sprint was limited by how the script was launched, not by the controller.</p>
+    </div>
+  </div>
+
+  <h2><span class="n">7</span>Conclusion and future work</h2>
+  <p>We built and tested a full GPS navigation stack for the DD-Boat: compass calibration, local projection, a hysteretic proportional controller, line-crossing waypoint validation, safety watchdogs and logging. It completed the 15 m box on the lake and reached the far buoy of the 166 m sprint within 3.7 m. Next steps: (i) re-run the sprint inside <span class="mono">screen</span> to record the full A → B → A time; (ii) cut spin turns on long legs by tuning the 40°/20° thresholds and adding cross-track or wind-drift correction; (iii) race the regatta loop on the water; (iv) feed the measured speed and turn rate back into the twin (k₁, k₂) so its time predictions match the lake.</p>
+
+  <h2><span class="n">8</span>Reproducibility</h2>
+  <div class="box" style="font-family:var(--sans); font-size:8.2pt; line-height:1.5">
+    Every figure is generated from the logged data in the repository. <span class="mono">python make_slide_images.py</span> rebuilds Fig. 2–4 from <span class="mono">NavySeals/box_mission_log.csv</span> and <span class="mono">NavySeals/mission_log.csv</span>; <span class="mono">python report/build_report.py</span> rebuilds this PDF. On the boat (Python 3.5.3), missions are started with <span class="mono">screen -S sprint python3 waypoint_mission.py</span>, and <span class="mono">python3 stop.py</span> is the emergency stop.
+  </div>
+
+  <h2><span class="n">9</span>Resources and references</h2>
+  <ol class="refs">
+    <li>Slides: <a href="https://vamshidharre.github.io/BEST_Breast/navyseals_presentation.html">vamshidharre.github.io/BEST_Breast/navyseals_presentation.html</a> · Code: <a href="https://github.com/vamshidharre/BEST_Breast">github.com/vamshidharre/BEST_Breast</a></li>
+    <li>L. Jaulin, <i>DD-Boat introductory course</i> (best_ddboat.pdf), ENSTA Bretagne, BEST 2026: calibration, control law and finish-line test.</li>
+    <li>L. Jaulin, <i>Mobile robotics / drones</i> textbook, ch. 4 (DD-Boats), p. 28: local GPS projection.</li>
+    <li>A. Morvan, <i>Digital twins and observers</i>, lecture slides, ENSTA Bretagne, 2026.</li>
+    <li>Esri World Imagery basemap (Esri, Maxar, Earthstar Geographics), used for Fig. 2–3.</li>
+  </ol>
+
+  <div class="foot"><span>Team NavySeals · BEST 2026 · <a href="https://github.com/vamshidharre/BEST_Breast">github.com/vamshidharre/BEST_Breast</a></span><span>4 / 4</span></div>
+</section>
+
+<script>
+  // Optional boat photo: try boat1.(jpg|jpeg|png|webp) in the repo root; hide the slot if none.
+  (function () {
+    const img = document.querySelector('#boat-photo img');
+    const fig = document.getElementById('boat-photo');
+    const list = [];
+    ['boat1', 'boat'].forEach(n => ['jpg', 'jpeg', 'png', 'webp', 'JPG', 'JPEG', 'PNG'].forEach(e => list.push('../' + n + '.' + e)));
+    let i = 0;
+    img.onerror = () => {
+      if (i < list.length) { img.src = list[i++]; return; }
+      fig.style.display = 'none';
+    };
+    img.src = list[i++];
+  })();
+
+  // Layout check used by build_report.py: flag any page whose content is taller than A4.
+  window.addEventListener('load', () => {
+    document.fonts.ready.then(() => {
+      const bad = [];
+      document.querySelectorAll('.page').forEach((p, i) => {
+        const foot = p.querySelector('.foot');
+        const limit = foot ? foot.offsetTop : p.clientHeight;
+        let maxBottom = 0;
+        Array.from(p.children).forEach(c => { if (c !== foot) maxBottom = Math.max(maxBottom, c.offsetTop + c.offsetHeight); });
+        if (maxBottom > limit) bad.push((i + 1) + ':' + (maxBottom - limit) + 'px');
+      });
+      document.body.setAttribute('data-overflow', bad.join(',') || 'none');
+    });
+  });
+</script>
+</body>
+</html>
