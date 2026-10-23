@@ -24,3 +24,6 @@ Desktop.ini
 
 # Satellite tile cache for make_slide_images.py
 slides_assets/.tile_cache/
+
+# Local clone of the ENSTA drivers (https://gitlab.ensta-bretagne.fr/zerrbe/drivers-ddboat-v2)
+drivers-ddboat-v2/

@@ -8,6 +8,7 @@
 | :---: | :---: | :---: |
 
 Figures are rebuilt from the logs with `python make_slide_images.py`; the report PDF with `python report/build_report.py`.
+Boat drivers (not included here): [ENSTA drivers-ddboat-v2](https://gitlab.ensta-bretagne.fr/zerrbe/drivers-ddboat-v2), cloned into `drivers-ddboat-v2/` on the boat.
 
 > 🚀 **STARTING A NEW CHAT SESSION?**  
 > Read [`SESSION_HANDOVER.md`](file:///d:/Personal_Projects/BEST_Breast/SESSION_HANDOVER.md) first! It contains the complete status, technical constraints (Python 3.5.3, no scipy, steering laws), verified milestones, and immediate commands to resume without repeating work.
