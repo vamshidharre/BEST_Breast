@@ -2,7 +2,7 @@
 **Team:** NavySeals · **Vessel:** DD-Boat 11 (`172.20.25.211`)  
 *Guerlédan Lake, Brittany | ENSTA Bretagne · Lab-STICC · ROBEX*  
 **Supervisors:** Prof. Luc Jaulin, Prof. Benoît Zerr, Antoine Morvan  
-**Team:** Vamshidhar Reddy Enugala · Samuel Mastroscianni · Jakub Grygierczyk · Natlach
+**Team:** Natlach · Jakub Grygierczyk · Samuel Mastroscianni · Vamshidhar Reddy Enugala
 
 | 📽️ [Slides](https://vamshidharre.github.io/BEST_Breast/navyseals_presentation.html) | 📄 [Report (PDF, 4 pages)](report/NavySeals_BEST2026_Report.pdf) | 🌐 [Project page](https://vamshidharre.github.io/BEST_Breast/) |
 | :---: | :---: | :---: |
